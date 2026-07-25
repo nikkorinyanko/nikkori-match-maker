@@ -77,34 +77,93 @@
             return DEFAULT_GENDER_MODE;
         };
 
-        const getStats = (playerId, history) => {
-            let matchCount = 0;
-            for (const h of history) {
-                if (h.players.includes(playerId)) matchCount++;
-            }
+        const calculateBaseStats = (pastHistory, currentMembers) => {
+            const presentMembers = currentMembers.filter(m => m.present);
+            const baseStats = {};
+            const rawStats = {};
+            
+            presentMembers.forEach(m => {
+                rawStats[m.id] = { matchCount: 0, consecutiveRest: 0, consecutivePlay: 0 };
+            });
+            
+            pastHistory.forEach(h => {
+                presentMembers.forEach(m => {
+                    if (h.players.includes(m.id)) {
+                        rawStats[m.id].matchCount++;
+                        rawStats[m.id].consecutivePlay++;
+                        rawStats[m.id].consecutiveRest = 0;
+                    } else if (h.absentees.includes(m.id)) {
+                        rawStats[m.id].consecutiveRest++;
+                        rawStats[m.id].consecutivePlay = 0;
+                    } else {
+                        rawStats[m.id].consecutivePlay = 0;
+                        rawStats[m.id].consecutiveRest = 0; 
+                    }
+                });
+            });
 
-            let consecutiveRest = 0;
-            for (let i = history.length - 1; i >= 0; i--) {
-                if (!history[i].players.includes(playerId)) consecutiveRest++;
-                else break;
-            }
+            const lastMatch = pastHistory[pastHistory.length - 1];
+            let minMatchCount = Infinity;
+            let maxConsecutiveRest = -1;
+            
+            const normalMembers = presentMembers.filter(m => 
+                lastMatch ? (lastMatch.players.includes(m.id) || lastMatch.absentees.includes(m.id)) : true
+            );
 
-            let consecutivePlay = 0;
-            for (let i = history.length - 1; i >= 0; i--) {
-                if (history[i].players.includes(playerId)) consecutivePlay++;
-                else break;
+            if (normalMembers.length > 0) {
+                normalMembers.forEach(m => {
+                    if (rawStats[m.id].matchCount < minMatchCount) minMatchCount = rawStats[m.id].matchCount;
+                    if (rawStats[m.id].consecutiveRest > maxConsecutiveRest) maxConsecutiveRest = rawStats[m.id].consecutiveRest;
+                });
+            } else {
+                minMatchCount = 0;
+                maxConsecutiveRest = 0;
             }
+            
+            presentMembers.forEach(m => {
+                const isNew = !pastHistory.some(h => h.players.includes(m.id) || h.absentees.includes(m.id));
+                const isReturn = !isNew && lastMatch && !lastMatch.players.includes(m.id) && !lastMatch.absentees.includes(m.id);
 
-            return { matchCount, consecutiveRest, consecutivePlay };
+                if (isNew || isReturn) {
+                    baseStats[m.id] = {
+                        matchCount: Math.max(rawStats[m.id].matchCount, Math.max(0, minMatchCount - 1)),
+                        consecutivePlay: 0,
+                        consecutiveRest: maxConsecutiveRest + 1
+                    };
+                } else {
+                    baseStats[m.id] = { ...rawStats[m.id] };
+                }
+            });
+
+            return baseStats;
         };
 
-        const calculatePenalty = (config, criterion, history, genderMode, presentMembers) => {
+        const getStats = (playerId, futureHistory, baseStatsMap) => {
+            let stats = baseStatsMap && baseStatsMap[playerId] 
+                ? { ...baseStatsMap[playerId] } 
+                : { matchCount: 0, consecutiveRest: 0, consecutivePlay: 0 };
+
+            for (const h of futureHistory) {
+                if (h.players.includes(playerId)) {
+                    stats.matchCount++;
+                    stats.consecutivePlay++;
+                    stats.consecutiveRest = 0;
+                } else if (h.absentees.includes(playerId)) {
+                    stats.consecutiveRest++;
+                    stats.consecutivePlay = 0;
+                }
+            }
+            return stats;
+        };
+
+        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap) => {
+            const fullHistory = [...pastHistory, ...futureHistory];
             const courtIds = new Set(config.players.map(p => p.id));
             
             if (criterion === 'count') {
                 let sum = 0;
                 presentMembers.forEach(m => {
-                    const stats = getStats(m.id, history);
+                    const stats = getStats(m.id, futureHistory, baseStatsMap);
                     const newCount = stats.matchCount + (courtIds.has(m.id) ? 1 : 0);
                     sum += Math.pow(newCount, 2);
                 });
@@ -114,7 +173,7 @@
             if (criterion === 'break') {
                 let sum = 0;
                 presentMembers.forEach(m => {
-                    const stats = getStats(m.id, history);
+                    const stats = getStats(m.id, futureHistory, baseStatsMap);
                     const newBreak = courtIds.has(m.id) ? 0 : stats.consecutiveRest + 1;
                     sum += Math.pow(newBreak, 2);
                 });
@@ -124,7 +183,7 @@
             if (criterion === 'consecutive') {
                 let sum = 0;
                 presentMembers.forEach(m => {
-                    const stats = getStats(m.id, history);
+                    const stats = getStats(m.id, futureHistory, baseStatsMap);
                     const newCons = courtIds.has(m.id) ? stats.consecutivePlay + 1 : 0;
                     sum += Math.pow(newCons, 2);
                 });
@@ -138,7 +197,7 @@
                 
                 const getPairCount = (pA, pB) => {
                     let count = 0;
-                    history.forEach(m => {
+                    fullHistory.forEach(m => {
                         if ((m.t1.includes(pA) && m.t1.includes(pB)) || 
                             (m.t2.includes(pA) && m.t2.includes(pB))) {
                             count++;
@@ -166,7 +225,7 @@
 
                 const getOpponentCount = (pA, pB) => {
                     let count = 0;
-                    history.forEach(m => {
+                    fullHistory.forEach(m => {
                         if ((m.t1.includes(pA) && m.t2.includes(pB)) || 
                             (m.t2.includes(pA) && m.t1.includes(pB))) {
                             count++;
@@ -189,7 +248,7 @@
                 const t1 = config.t1.map(p => p.id).sort().join(',');
                 const t2 = config.t2.map(p => p.id).sort().join(',');
                 let count = 0;
-                history.forEach(m => {
+                fullHistory.forEach(m => {
                     const ht1 = [...m.t1].sort().join(',');
                     const ht2 = [...m.t2].sort().join(',');
                     if ((t1 === ht1 && t2 === ht2) || (t1 === ht2 && t2 === ht1)) {
@@ -242,7 +301,7 @@
             return 0;
         };
 
-        function evaluateAndCreateNextMatch(presentMembers, history, priorityOrder, genderMode) {
+        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, baseStatsMap) {
             if (presentMembers.length < 4) return null;
 
             const N = presentMembers.length;
@@ -268,7 +327,7 @@
             let candidates = [...configurations];
 
             for (const criterion of priorityOrder) {
-                const scores = candidates.map(config => calculatePenalty(config, criterion, history, genderMode, presentMembers));
+                const scores = candidates.map(config => calculatePenalty(config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap));
                 const minScore = Math.min(...scores);
                 
                 candidates = candidates.filter((_, idx) => scores[idx] === minScore);
@@ -280,7 +339,7 @@
             const chosenAbsentees = presentMembers.filter(m => !chosenCourtIds.has(m.id));
 
             return {
-                id: `match-${history.length + 1}`,
+                id: `temp-${Date.now()}`,
                 players: chosen.players.map(p => p.id),
                 t1: chosen.t1.map(p => p.id),
                 t2: chosen.t2.map(p => p.id),
@@ -309,6 +368,9 @@
             const [toast, setToast] = useState({ show: false, message: "" });
             const [capturedImage, setCapturedImage] = useState(null);
             const [showImageModal, setShowImageModal] = useState(false);
+            
+            const [showContinueModal, setShowContinueModal] = useState(false);
+            const [completedMatchCountInput, setCompletedMatchCountInput] = useState("0");
 
             const bottomRef = useRef(null);
             const settingsRef = useRef(null);
@@ -370,7 +432,8 @@
                     id: newId,
                     name: "",
                     members: [],
-                    settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE }
+                    settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE },
+                    matchList: []
                 };
                 const updated = [...groups, newGroup];
                 setGroups(updated);
@@ -394,7 +457,7 @@
                 setActiveGroupId(gId);
                 setGroupName(target.name);
                 setMembers(target.members || []);
-                setMatchList([]);
+                setMatchList(target.matchList || []);
                 setPriorityOrder(ensurePriorityList(target.settings?.priority));
                 setGenderMode(normalizeGenderMode(target.settings?.genderMode));
                 setIsGenderExpanded(false);
@@ -420,7 +483,13 @@
 
                 const updatedGroups = groups.map(g => {
                     if (g.id === activeGroupId) {
-                        return { ...g, name: resolvedName, members: cleanMembers, settings: { priority: priorityOrder, genderMode: genderMode } };
+                        return { 
+                            ...g, 
+                            name: resolvedName, 
+                            members: cleanMembers, 
+                            settings: { priority: priorityOrder, genderMode: genderMode },
+                            matchList: matchList 
+                        };
                     }
                     return g;
                 });
@@ -505,15 +574,97 @@
                 handleSaveGroup();
 
                 const generated = [];
+                const baseStatsMap = {}; 
+                activeAttendees.forEach(m => baseStatsMap[m.id] = {matchCount:0, consecutivePlay:0, consecutiveRest:0});
+
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, priorityOrder, genderMode);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, [], priorityOrder, genderMode, baseStatsMap);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
                 }
 
-                setMatchList(generated);
+                const finalizedList = generated.map((m, idx) => ({
+                    ...m,
+                    id: `match-${idx + 1}`
+                }));
+
+                setMatchList(finalizedList);
+                
+                const updatedGroups = groups.map(g => {
+                    if (g.id === activeGroupId) {
+                        return { ...g, matchList: finalizedList };
+                    }
+                    return g;
+                });
+                setGroups(updatedGroups);
+                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
+
                 setMatchPage(0);
                 setPage('match');
+            };
+
+            const handleOpenContinueModal = () => {
+                setCompletedMatchCountInput("0");
+                setShowContinueModal(true);
+            };
+
+            const handleExecuteContinue = () => {
+                const count = parseInt(completedMatchCountInput, 10);
+                if (isNaN(count) || count < 0 || count > matchList.length) {
+                    triggerToast("⚠️ 正しい試合数を入力してください");
+                    return;
+                }
+
+                const cleanMembers = members.filter(m => m.name.trim() !== "");
+                const activeAttendees = cleanMembers.filter(m => m.present);
+
+                if (activeAttendees.length < 4) {
+                    triggerToast("⚠️ 試合を行うには参加者が最低4人必要です");
+                    setShowContinueModal(false);
+                    return;
+                }
+
+                handleSaveGroup();
+
+                const pastHistory = matchList.slice(0, count);
+                const baseStatsMap = calculateBaseStats(pastHistory, cleanMembers);
+
+                const generated = [];
+                for (let i = 0; i < 10; i++) {
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, baseStatsMap);
+                    if (nextMatch) generated.push(nextMatch);
+                    else break;
+                }
+
+                if (generated.length === 0 && pastHistory.length === 0) {
+                    triggerToast("⚠️ 組み合わせを作れません");
+                    setShowContinueModal(false);
+                    return;
+                }
+
+                const newMatchList = [...pastHistory, ...generated];
+                
+                const finalizedList = newMatchList.map((m, idx) => ({
+                    ...m,
+                    id: `match-${idx + 1}`
+                }));
+
+                setMatchList(finalizedList);
+
+                const updatedGroups = groups.map(g => {
+                    if (g.id === activeGroupId) {
+                        return { ...g, matchList: finalizedList };
+                    }
+                    return g;
+                });
+                setGroups(updatedGroups);
+                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
+
+                const targetPage = Math.floor(pastHistory.length / 10);
+                setMatchPage(targetPage);
+                
+                setPage('match');
+                setShowContinueModal(false);
             };
 
             const handleNextPageOrGenerate = () => {
@@ -530,8 +681,10 @@
                 if (activeAttendees.length < 4) return;
 
                 const nextTen = [];
+                const baseStatsMap = calculateBaseStats(matchList, cleanMembers);
+
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, [...matchList, ...nextTen], priorityOrder, genderMode);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextTen, matchList, priorityOrder, genderMode, baseStatsMap);
                     if (nextMatch) nextTen.push(nextMatch);
                     else break;
                 }
@@ -540,7 +693,24 @@
                     triggerToast("⚠️ これ以上組み合わせを作れません");
                     return;
                 }
-                setMatchList([...matchList, ...nextTen]);
+                
+                const newMatchList = [...matchList, ...nextTen];
+                const finalizedList = newMatchList.map((m, idx) => ({
+                    ...m,
+                    id: `match-${idx + 1}`
+                }));
+
+                setMatchList(finalizedList);
+                
+                const updatedGroups = groups.map(g => {
+                    if (g.id === activeGroupId) {
+                        return { ...g, matchList: finalizedList };
+                    }
+                    return g;
+                });
+                setGroups(updatedGroups);
+                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
+
                 setMatchPage(targetPageIndex);
             };
 
@@ -557,23 +727,18 @@
                         backgroundColor: "#ffffff",
                         logging: false,
                         onclone: (clonedDoc) => {
-                            // 画像化の際に指定要素のY位置を微調整
                             const targetElements = clonedDoc.querySelectorAll('.capture-safe-text');
                             targetElements.forEach(el => {
                                 el.style.position = 'relative';
                                 const text = el.textContent.trim();
                                 
                                 if (text.toLowerCase() === 'vs') {
-                                    // 「VS」テキストの位置を2PX下に ( -10px )
                                     el.style.top = '-10px';
                                 } else if (el.classList.contains('w-[48%]')) {
-                                    // 名前枠コンテナの位置はそのまま ( -2px )
                                     el.style.top = '-2px';
                                 } else if (el.parentElement && el.parentElement.classList.contains('w-[48%]')) {
-                                    // 名前枠の中の名前テキスト部分のみさらに2PX上に上げる ( -6px )
                                     el.style.top = '-6px';
                                 } else {
-                                    // それ以外のヘッダー等テキストは従来どおり -8px
                                     el.style.top = '-8px';
                                 }
                             });
@@ -745,7 +910,6 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'group' && (
                             <div className="space-y-3">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1007,21 +1171,31 @@
                                     )}
                                 </div>
 
-                                <div className="pt-1">
+                                <div className="pt-1 flex space-x-2">
                                     <button
                                         type="button"
                                         onClick={handleCreateMatchTable}
-                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-2 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm"
                                     >
-                                        対戦表を作成する
+                                        対戦表を新規作成する
                                     </button>
+                                    
+                                    {matchList.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenContinueModal}
+                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-sm text-center flex flex-col items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
+                                        >
+                                            <span className="leading-none">変更して</span>
+                                            <span className="leading-none">続ける</span>
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div ref={bottomRef} />
                             </div>
                         )}
 
-                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
@@ -1044,8 +1218,8 @@
                                             const absNames = m.absentees.map(id => getMemberName(id));
 
                                             return (
-                                                <div key={m.id} className="border-b border-slate-200 py-1.5 flex flex-col justify-center">
-                                                    <div className="flex items-center mb-1 w-full">
+                                                <div key={m.id} className="border-b border-slate-200 py-1.5 flex flex-col justify-center relative transition-colors">
+                                                    <div className="flex items-center mb-1 w-full pr-2">
                                                         <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0 capture-safe-text">
                                                             第{matchNum}試合
                                                         </span>
@@ -1110,7 +1284,6 @@
                         )}
                     </main>
 
-                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
                         <div className="max-w-md w-full mx-auto flex items-center justify-between px-2 -translate-y-2">
                             <div className="w-16 flex justify-start">
@@ -1158,7 +1331,31 @@
                         </div>
                     </footer>
 
-                    {}
+                    {showContinueModal && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
+                                <h3 className="font-extrabold text-sm text-slate-800 text-center">
+                                    消化試合数
+                                </h3>
+                                <input 
+                                    type="number" 
+                                    min="0"
+                                    max={matchList.length}
+                                    defaultValue="0"
+                                    onChange={(e) => setCompletedMatchCountInput(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-2 py-1 outline-none text-center font-bold text-slate-800 placeholder:text-slate-300"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleExecuteContinue}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 text-sm rounded-xl transition-all shadow-sm"
+                                >
+                                    OK
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {showImageModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
