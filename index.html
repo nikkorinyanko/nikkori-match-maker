@@ -126,9 +126,9 @@
 
                 if (isNew || isReturn) {
                     baseStats[m.id] = {
-                        matchCount: Math.max(rawStats[m.id].matchCount, Math.max(0, minMatchCount - 1)),
+                        matchCount: Math.max(rawStats[m.id].matchCount, Math.max(0, minMatchCount )),
                         consecutivePlay: 0,
-                        consecutiveRest: maxConsecutiveRest + 1
+                        consecutiveRest: maxConsecutiveRest
                     };
                 } else {
                     baseStats[m.id] = { ...rawStats[m.id] };
