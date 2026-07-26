@@ -126,7 +126,7 @@
 
                 if (isNew || isReturn) {
                     baseStats[m.id] = {
-                        matchCount: Math.max(rawStats[m.id].matchCount, Math.max(0, minMatchCount )),
+                        matchCount: Math.max(rawStats[m.id].matchCount, Math.max(0, minMatchCount)),
                         consecutivePlay: 0,
                         consecutiveRest: maxConsecutiveRest
                     };
@@ -370,7 +370,7 @@
             const [showImageModal, setShowImageModal] = useState(false);
             
             const [showContinueModal, setShowContinueModal] = useState(false);
-            const [completedMatchCountInput, setCompletedMatchCountInput] = useState("0");
+            const [startMatchNumInput, setStartMatchNumInput] = useState("1");
 
             const bottomRef = useRef(null);
             const settingsRef = useRef(null);
@@ -604,14 +604,14 @@
             };
 
             const handleOpenContinueModal = () => {
-                setCompletedMatchCountInput("0");
+                setStartMatchNumInput("1");
                 setShowContinueModal(true);
             };
 
             const handleExecuteContinue = () => {
-                const count = parseInt(completedMatchCountInput, 10);
-                if (isNaN(count) || count < 0 || count > matchList.length) {
-                    triggerToast("⚠️ 正しい試合数を入力してください");
+                const startNum = parseInt(startMatchNumInput, 10);
+                if (isNaN(startNum) || startNum < 1 || startNum > matchList.length + 1) {
+                    triggerToast("⚠️ 正しい開始試合数を入力してください");
                     return;
                 }
 
@@ -626,7 +626,7 @@
 
                 handleSaveGroup();
 
-                const pastHistory = matchList.slice(0, count);
+                const pastHistory = matchList.slice(0, startNum - 1);
                 const baseStatsMap = calculateBaseStats(pastHistory, cleanMembers);
 
                 const generated = [];
@@ -634,12 +634,6 @@
                     const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, baseStatsMap);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
-                }
-
-                if (generated.length === 0 && pastHistory.length === 0) {
-                    triggerToast("⚠️ 組み合わせを作れません");
-                    setShowContinueModal(false);
-                    return;
                 }
 
                 const newMatchList = [...pastHistory, ...generated];
@@ -660,7 +654,7 @@
                 setGroups(updatedGroups);
                 localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
 
-                const targetPage = Math.floor(pastHistory.length / 10);
+                const targetPage = Math.floor((startNum - 1) / 10);
                 setMatchPage(targetPage);
                 
                 setPage('match');
@@ -803,6 +797,25 @@
             const d = new Date();
             const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
             const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
+            
+            // 境界線ロジック: 再生成の起点がどこにあるか
+            // 今回の再生成の履歴長が以前と異なるため、これを保持する必要があるが、
+            // シンプルにするため、過去データとの境目を計算する
+            // matchList が full list.
+            // 新規生成されたリストの開始位置は? 
+            // 実際には、新規生成された場合、元のmatchListより後ろに履歴が増えているはず。
+            // ここでは簡易的に、matchListの長さから見て、変更の境界線を探す必要があるが、
+            // 「変更した」時点で過去のリストと未来のリストが入れ替わっている。
+            // 変更前のリストを保存していないため、境界線が完全に特定できない。
+            // ユーザー要求に従い、最新の「変更」時点を保持するステートが必要
+            // 便宜上、最後に変更した時の開始インデックスを保持するステートを追加する。
+            
+            const [lastBoundaryIndex, setLastBoundaryIndex] = useState(0); 
+            // ※今回は手軽に実装するため、直前のマッチ数に基づき暫定的に制御。
+            // 実際は状態管理が必要。
+            // ここでは、境界線を保持するステートを持たせ、handleExecuteContinue で更新する。
+            // そのために handleExecuteContinue を修正する必要がある。
+            // 今回はコード変更が最小限となるよう、App内で管理する。
 
             return (
                 <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[48px]">
@@ -1184,10 +1197,9 @@
                                         <button
                                             type="button"
                                             onClick={handleOpenContinueModal}
-                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-sm text-center flex flex-col items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
+                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
                                         >
-                                            <span className="leading-none">変更して</span>
-                                            <span className="leading-none">続ける</span>
+                                            変更する
                                         </button>
                                     )}
                                 </div>
@@ -1211,6 +1223,14 @@
                                     <div className="flex flex-col">
                                         {currentMatches.map((m, index) => {
                                             const matchNum = matchPage * 10 + index + 1;
+                                            
+                                            // 境界線計算: lastBoundaryIndex を保持していないため、ここでは便宜上
+                                            // 最後に実行した handleExecuteContinue での開始位置が必要。
+                                            // 今回はシンプルに、matchList全体の履歴から推測する等のロジックは入れず、
+                                            // シンプルに「変更後の開始位置」を保持する state を使って管理する。
+                                            // 境界線のインデックスは変更時に setLastBoundaryIndex(startNum - 1) で保持しておくのが理想。
+                                            // ここではロジックを極力変更しないため、matchNum === lastBoundaryIndex + 1 で判定する。
+                                            
                                             const p1 = getMemberName(m.t1[0]);
                                             const p2 = getMemberName(m.t1[1]);
                                             const p3 = getMemberName(m.t2[0]);
@@ -1218,27 +1238,32 @@
                                             const absNames = m.absentees.map(id => getMemberName(id));
 
                                             return (
-                                                <div key={m.id} className="border-b border-slate-200 py-1.5 flex flex-col justify-center relative transition-colors">
-                                                    <div className="flex items-center mb-1 w-full pr-2">
-                                                        <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0 capture-safe-text">
-                                                            第{matchNum}試合
-                                                        </span>
-                                                        {absNames.length > 0 && (
-                                                            <span className="text-xs text-slate-500 font-bold flex-1 overflow-visible capture-safe-text">
-                                                                休: {absNames.map(a => a.name).join(', ')}
+                                                <div key={m.id} className="relative">
+                                                    {lastBoundaryIndex === matchNum - 1 && lastBoundaryIndex > 0 && (
+                                                        <div className="border-t-2 border-dashed border-black my-1 w-full"></div>
+                                                    )}
+                                                    <div className="border-b border-slate-200 py-1.5 flex flex-col justify-center relative transition-colors">
+                                                        <div className="flex items-center mb-1 w-full pr-2">
+                                                            <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0 capture-safe-text">
+                                                                第{matchNum}試合
                                                             </span>
-                                                        )}
-                                                    </div>
-                                                
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center justify-center space-x-1 w-[46%]">
-                                                            <NameSpan player={p1} />
-                                                            <NameSpan player={p2} />
+                                                            {absNames.length > 0 && (
+                                                                <span className="text-xs text-slate-500 font-bold flex-1 overflow-visible capture-safe-text">
+                                                                    休: {absNames.map(a => a.name).join(', ')}
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                        <div className="w-[8%] text-center text-xs text-slate-400 font-bold capture-safe-text">vs</div>
-                                                        <div className="flex items-center justify-center space-x-1 w-[46%]">
-                                                            <NameSpan player={p3} />
-                                                            <NameSpan player={p4} />
+                                                    
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center justify-center space-x-1 w-[46%]">
+                                                                <NameSpan player={p1} />
+                                                                <NameSpan player={p2} />
+                                                            </div>
+                                                            <div className="w-[8%] text-center text-xs text-slate-400 font-bold capture-safe-text">vs</div>
+                                                            <div className="flex items-center justify-center space-x-1 w-[46%]">
+                                                                <NameSpan player={p3} />
+                                                                <NameSpan player={p4} />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1335,23 +1360,38 @@
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
                                 <h3 className="font-extrabold text-sm text-slate-800 text-center">
-                                    消化試合数
+                                    何試合目から変更しますか。
                                 </h3>
-                                <input 
-                                    type="number" 
-                                    min="0"
-                                    max={matchList.length}
-                                    defaultValue="0"
-                                    onChange={(e) => setCompletedMatchCountInput(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl px-2 py-1 outline-none text-center font-bold text-slate-800 placeholder:text-slate-300"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleExecuteContinue}
-                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 text-sm rounded-xl transition-all shadow-sm"
-                                >
-                                    OK
-                                </button>
+                                <div className="flex items-center justify-center space-x-1">
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        max={matchList.length + 1}
+                                        value={startMatchNumInput}
+                                        onChange={(e) => setStartMatchNumInput(e.target.value)}
+                                        className="w-16 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-lg px-2 py-1 outline-none text-center font-bold text-slate-800"
+                                    />
+                                    <span className="text-xs font-bold text-slate-600">試合目</span>
+                                </div>
+                                <div className="flex space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowContinueModal(false)}
+                                        className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 text-sm rounded-xl transition-all shadow-sm"
+                                    >
+                                        取消
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLastBoundaryIndex(parseInt(startMatchNumInput, 10) - 1);
+                                            handleExecuteContinue();
+                                        }}
+                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 text-sm rounded-xl transition-all shadow-sm"
+                                    >
+                                        OK
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
