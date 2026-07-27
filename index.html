@@ -355,11 +355,13 @@
             const [groupName, setGroupName] = useState('');
             const [members, setMembers] = useState([]);
             
+            // Tab state: 'members', 'pair', 'settings'
+            const [activeTab, setActiveTab] = useState('members');
+
             const [priorityOrder, setPriorityOrder] = useState(DEFAULT_PRIORITY);
             const [genderMode, setGenderMode] = useState(DEFAULT_GENDER_MODE);
             const [isGenderExpanded, setIsGenderExpanded] = useState(false);
             
-            const [showSettings, setShowSettings] = useState(false);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
             const [matchList, setMatchList] = useState([]);
@@ -371,9 +373,9 @@
             
             const [showContinueModal, setShowContinueModal] = useState(false);
             const [startMatchNumInput, setStartMatchNumInput] = useState("1");
+            const [lastBoundaryIndex, setLastBoundaryIndex] = useState(0);
 
             const bottomRef = useRef(null);
-            const settingsRef = useRef(null);
             const prevMembersLength = useRef(members.length);
 
             const presentCount = members.filter(m => m.present).length;
@@ -405,20 +407,9 @@
                 setTimeout(() => setToast({ show: false, message: "" }), 2500);
             };
 
-            const handleToggleSettings = () => {
-                const nextState = !showSettings;
-                setShowSettings(nextState);
-                if (nextState) {
-                    setTimeout(() => {
-                        settingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 50);
-                }
-            };
-
             const handleGoHome = () => {
                 setPage('top');
                 setActiveGroupId(null);
-                setShowSettings(false);
                 setDeleteConfirmId(null);
             };
             
@@ -446,7 +437,7 @@
                 setPriorityOrder(newGroup.settings.priority);
                 setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
                 setIsGenderExpanded(false);
-                setShowSettings(false);
+                setActiveTab('members');
                 setDeleteConfirmId(null);
                 setPage('group');
             };
@@ -461,7 +452,7 @@
                 setPriorityOrder(ensurePriorityList(target.settings?.priority));
                 setGenderMode(normalizeGenderMode(target.settings?.genderMode));
                 setIsGenderExpanded(false);
-                setShowSettings(false);
+                setActiveTab('members');
                 setDeleteConfirmId(null);
                 setPage('group');
             };
@@ -589,6 +580,7 @@
                 }));
 
                 setMatchList(finalizedList);
+                setLastBoundaryIndex(0);
                 
                 const updatedGroups = groups.map(g => {
                     if (g.id === activeGroupId) {
@@ -797,31 +789,12 @@
             const d = new Date();
             const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
             const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
-            
-            // 境界線ロジック: 再生成の起点がどこにあるか
-            // 今回の再生成の履歴長が以前と異なるため、これを保持する必要があるが、
-            // シンプルにするため、過去データとの境目を計算する
-            // matchList が full list.
-            // 新規生成されたリストの開始位置は? 
-            // 実際には、新規生成された場合、元のmatchListより後ろに履歴が増えているはず。
-            // ここでは簡易的に、matchListの長さから見て、変更の境界線を探す必要があるが、
-            // 「変更した」時点で過去のリストと未来のリストが入れ替わっている。
-            // 変更前のリストを保存していないため、境界線が完全に特定できない。
-            // ユーザー要求に従い、最新の「変更」時点を保持するステートが必要
-            // 便宜上、最後に変更した時の開始インデックスを保持するステートを追加する。
-            
-            const [lastBoundaryIndex, setLastBoundaryIndex] = useState(0); 
-            // ※今回は手軽に実装するため、直前のマッチ数に基づき暫定的に制御。
-            // 実際は状態管理が必要。
-            // ここでは、境界線を保持するステートを持たせ、handleExecuteContinue で更新する。
-            // そのために handleExecuteContinue を修正する必要がある。
-            // 今回はコード変更が最小限となるよう、App内で管理する。
 
             return (
                 <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[48px]">
                     
                     <header className="fixed top-0 left-0 right-0 z-40 bg-[#E9D44D] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
-                        <span className=" text-sm tracking-widest uppercase text-slate-800">
+                        <span className="text-sm tracking-widest uppercase text-slate-800 font-bold">
                             [広告募集中]
                         </span>
                     </header>
@@ -923,8 +896,10 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'group' && (
                             <div className="space-y-3">
+                                {/* グループ名入力カード */}
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
@@ -968,107 +943,140 @@
                                     )}
                                 </div>
 
-                                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm space-y-0.5">
-                                    <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-0.5 text-[11px] font-bold text-slate-500">
-                                        <div className="w-14 text-center text-emerald-600 font-extrabold shrink-0">
-                                            参加 {presentCount}名
-                                        </div>
-                                        <div className="flex-1 text-left pl-1 text-slate-400 font-normal overflow-visible">
-                                            メンバー名（4文字以内）
-                                        </div>
-                                        <div className="w-6 shrink-0"></div>
+                                {/* タブメニュー ＆ コンテンツカード */}
+                                <div>
+                                    {/* タブバー */}
+                                    <div className="flex space-x-1 border-b border-slate-200 px-1 pt-1 bg-slate-100/70 rounded-t-2xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('members')}
+                                            className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all ${
+                                                activeTab === 'members'
+                                                    ? 'bg-white text-emerald-600 shadow-sm border-t border-x border-slate-200 -mb-px'
+                                                    : 'text-slate-500 hover:text-slate-700 bg-transparent border-t border-x border-transparent'
+                                            }`}
+                                        >
+                                            メンバー
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('pair')}
+                                            className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all ${
+                                                activeTab === 'pair'
+                                                    ? 'bg-white text-emerald-600 shadow-sm border-t border-x border-slate-200 -mb-px'
+                                                    : 'text-slate-500 hover:text-slate-700 bg-transparent border-t border-x border-transparent'
+                                            }`}
+                                        >
+                                            ペア
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('settings')}
+                                            className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all ${
+                                                activeTab === 'settings'
+                                                    ? 'bg-white text-emerald-600 shadow-sm border-t border-x border-slate-200 -mb-px'
+                                                    : 'text-slate-500 hover:text-slate-700 bg-transparent border-t border-x border-transparent'
+                                            }`}
+                                        >
+                                            条件設定
+                                        </button>
                                     </div>
 
-                                    <div className="space-y-1.5 pb-1">
-                                        {members.map((m, index) => (
-                                            <div key={m.id} className="flex items-center space-x-1.5 p-1 border-b border-slate-50">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => toggleMemberPresence(index)}
-                                                    className={`w-14 py-1 text-xs font-bold rounded shadow-sm transition-all shrink-0 ${
-                                                        m.present 
-                                                        ? 'bg-emerald-500 text-white' 
-                                                        : 'bg-slate-200 text-slate-500'
-                                                    }`}
-                                                >
-                                                    {m.present ? '参加' : '不参加'}
-                                                </button>
-
-                                                <input
-                                                    type="text"
-                                                    value={m.name}
-                                                    onChange={(e) => updateMemberName(index, e.target.value)}
-                                                    maxLength={4}
-                                                    className={`flex-1 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
-                                                />
-
-                                                <div className="flex space-x-1 shrink-0">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleMemberGender(index, 'M')}
-                                                        className={`w-8 py-1 text-xs font-bold rounded transition-all ${
-                                                            m.gender === 'M'
-                                                            ? 'bg-sky-500 text-white shadow-sm'
-                                                            : 'bg-white text-slate-400 border border-slate-200'
-                                                        }`}
-                                                    >
-                                                        男
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleMemberGender(index, 'F')}
-                                                        className={`w-8 py-1 text-xs font-bold rounded transition-all ${
-                                                            m.gender === 'F'
-                                                            ? 'bg-rose-500 text-white shadow-sm'
-                                                            : 'bg-white text-slate-400 border border-slate-200'
-                                                        }`}
-                                                    >
-                                                        女
-                                                    </button>
+                                    {/* タブコンテンツ */}
+                                    <div className="bg-white rounded-b-2xl rounded-tr-2xl p-3 border border-slate-200 border-t-0 shadow-sm">
+                                        {}
+                                        {activeTab === 'members' && (
+                                            <div className="space-y-0.5">
+                                                <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-0.5 text-[11px] font-bold text-slate-500">
+                                                    <div className="w-14 text-center text-emerald-600 font-extrabold shrink-0">
+                                                        参加 {presentCount}名
+                                                    </div>
+                                                    <div className="flex-1 text-left pl-1 text-slate-400 font-normal overflow-visible">
+                                                        メンバー名（4文字以内）
+                                                    </div>
+                                                    <div className="w-6 shrink-0"></div>
                                                 </div>
 
-                                                <button type="button" onClick={() => deleteMember(index)} className="p-1 text-slate-300 hover:text-rose-500 shrink-0">
-                                                    <TrashIcon />
-                                                </button>
+                                                <div className="space-y-1.5 pb-1">
+                                                    {members.map((m, index) => (
+                                                        <div key={m.id} className="flex items-center space-x-1.5 p-1 border-b border-slate-50">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleMemberPresence(index)}
+                                                                className={`w-14 py-1 text-xs font-bold rounded shadow-sm transition-all shrink-0 ${
+                                                                    m.present 
+                                                                    ? 'bg-emerald-500 text-white' 
+                                                                    : 'bg-slate-200 text-slate-500'
+                                                                }`}
+                                                            >
+                                                                {m.present ? '参加' : '不参加'}
+                                                            </button>
+
+                                                            <input
+                                                                type="text"
+                                                                value={m.name}
+                                                                onChange={(e) => updateMemberName(index, e.target.value)}
+                                                                maxLength={4}
+                                                                className={`flex-1 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
+                                                            />
+
+                                                            <div className="flex space-x-1 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleMemberGender(index, 'M')}
+                                                                    className={`w-8 py-1 text-xs font-bold rounded transition-all ${
+                                                                        m.gender === 'M'
+                                                                        ? 'bg-sky-500 text-white shadow-sm'
+                                                                        : 'bg-white text-slate-400 border border-slate-200'
+                                                                    }`}
+                                                                >
+                                                                    男
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleMemberGender(index, 'F')}
+                                                                    className={`w-8 py-1 text-xs font-bold rounded transition-all ${
+                                                                        m.gender === 'F'
+                                                                        ? 'bg-rose-500 text-white shadow-sm'
+                                                                        : 'bg-white text-slate-400 border border-slate-200'
+                                                                    }`}
+                                                                >
+                                                                    女
+                                                                </button>
+                                                            </div>
+
+                                                            <button type="button" onClick={() => deleteMember(index)} className="p-1 text-slate-300 hover:text-rose-500 shrink-0">
+                                                                <TrashIcon />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+
+                                                    <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} />
+                                                </div>
                                             </div>
-                                        ))}
+                                        )}
 
-                                        <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} />
-                                    </div>
-                                </div>
+                                        {}
+                                        {activeTab === 'pair' && (
+                                            <div className="py-10 text-center text-slate-400 space-y-1">
+                                                <div className="text-2xl mb-1">🎾</div>
+                                                <div className="font-bold text-slate-600 text-sm">固定ペア・禁止ペア設定</div>
+                                                <p className="text-xs text-slate-400">（今後の機能拡張で追加予定です）</p>
+                                            </div>
+                                        )}
 
-                                <div ref={settingsRef} className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm scroll-mt-[55px]">
-                                    <div className="flex items-center justify-between">
-                                        <button
-                                            type="button"
-                                            onClick={handleToggleSettings}
-                                            className="flex items-center text-sm font-bold text-slate-600 focus:outline-none whitespace-nowrap py-0.5"
-                                        >
-                                            <SettingsIcon className="w-4 h-4 mr-1 shrink-0" />
-                                            <span className="whitespace-nowrap">詳細設定</span>
-                                            <span className={`ml-1 transform transition-transform ${showSettings ? 'rotate-180' : ''}`}>▼</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleSaveGroup}
-                                            className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3 py-1 rounded-lg transition-colors shadow-sm"
-                                        >
-                                            保存
-                                        </button>
-                                    </div>
-
-                                    {showSettings && (
-                                        <div className="pt-4 space-y-4 mt-2 border-t border-slate-100">
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between items-end mb-1">
-                                                    <h3 className="text-xs font-bold text-slate-700">組み合わせの優先順位</h3>
+                                        {}
+                                        {activeTab === 'settings' && (
+                                            <div className="space-y-3 pt-1">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h3 className="text-xs font-bold text-slate-700">組み合わせの優先順位設定</h3>
                                                     <button 
                                                         type="button"
                                                         onClick={() => {
                                                             setPriorityOrder(DEFAULT_PRIORITY);
                                                             setGenderMode(DEFAULT_GENDER_MODE);
                                                         }} 
-                                                        className="text-xs text-emerald-600 font-bold underline"
+                                                        className="text-xs text-emerald-600 font-bold underline hover:text-emerald-700"
                                                     >
                                                         初期設定に戻す
                                                     </button>
@@ -1180,34 +1188,50 @@
                                                     })}
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="pt-1 flex space-x-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleCreateMatchTable}
-                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-2 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm"
-                                    >
-                                        対戦表を新規作成する
-                                    </button>
-                                    
-                                    {matchList.length > 0 && (
+                                {}
+                                <div className="pt-1 space-y-1.5">
+                                    {/* 右上に配置した保存ボタン */}
+                                    <div className="flex justify-end">
                                         <button
                                             type="button"
-                                            onClick={handleOpenContinueModal}
-                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
+                                            onClick={handleSaveGroup}
+                                            className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1 rounded-lg transition-colors shadow-sm active:scale-95"
                                         >
-                                            変更する
+                                            💾 保存
                                         </button>
-                                    )}
+                                    </div>
+
+                                    {/* 対戦表作成ボタン領域 */}
+                                    <div className="flex space-x-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateMatchTable}
+                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-2 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm"
+                                        >
+                                            対戦表を新規作成する
+                                        </button>
+                                        
+                                        {matchList.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={handleOpenContinueModal}
+                                                className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
+                                            >
+                                                変更する
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div ref={bottomRef} />
                             </div>
                         )}
 
+                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
@@ -1223,13 +1247,6 @@
                                     <div className="flex flex-col">
                                         {currentMatches.map((m, index) => {
                                             const matchNum = matchPage * 10 + index + 1;
-                                            
-                                            // 境界線計算: lastBoundaryIndex を保持していないため、ここでは便宜上
-                                            // 最後に実行した handleExecuteContinue での開始位置が必要。
-                                            // 今回はシンプルに、matchList全体の履歴から推測する等のロジックは入れず、
-                                            // シンプルに「変更後の開始位置」を保持する state を使って管理する。
-                                            // 境界線のインデックスは変更時に setLastBoundaryIndex(startNum - 1) で保持しておくのが理想。
-                                            // ここではロジックを極力変更しないため、matchNum === lastBoundaryIndex + 1 で判定する。
                                             
                                             const p1 = getMemberName(m.t1[0]);
                                             const p2 = getMemberName(m.t1[1]);
@@ -1309,6 +1326,7 @@
                         )}
                     </main>
 
+                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
                         <div className="max-w-md w-full mx-auto flex items-center justify-between px-2 -translate-y-2">
                             <div className="w-16 flex justify-start">
