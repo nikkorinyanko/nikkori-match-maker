@@ -33,13 +33,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const SettingsIcon = ({ className = "w-4 h-4" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-            </svg>
-        );
-
         const TrashIcon = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -57,11 +50,14 @@
             pair: '同一ペア回避',
             opponent: '同一相手回避',
             card: '同一カード回避',
-            gender: '男女バランス'
+            gender: '男女バランス',
+            level: 'レベルバランス'
         };
 
-        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'card', 'gender'];
+        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'card', 'gender', 'level'];
         const DEFAULT_GENDER_MODE = 'consider';
+
+        const LEVELS = ['未設定', '初級', '初中級', '中級', '中上級', '上級'];
 
         const ensurePriorityList = (pList) => {
             if (!Array.isArray(pList)) return DEFAULT_PRIORITY;
@@ -156,10 +152,14 @@
             return stats;
         };
 
-        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap) => {
+        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules = []) => {
             const fullHistory = [...pastHistory, ...futureHistory];
             const courtIds = new Set(config.players.map(p => p.id));
             
+            if (criterion === 'level') {
+                return 0;
+            }
+
             if (criterion === 'count') {
                 let sum = 0;
                 presentMembers.forEach(m => {
@@ -301,7 +301,7 @@
             return 0;
         };
 
-        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, baseStatsMap) {
+        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, baseStatsMap, pairRules = []) {
             if (presentMembers.length < 4) return null;
 
             const N = presentMembers.length;
@@ -324,10 +324,48 @@
                 }
             }
 
-            let candidates = [...configurations];
+            let validConfigurations = configurations.map(config => {
+                let extraPenalty = 0;
+                const t1Ids = config.t1.map(p => p.id);
+                const t2Ids = config.t2.map(p => p.id);
+                const courtIds = new Set(config.players.map(p => p.id));
+
+                for (const rule of pairRules) {
+                    if (!rule.p1 || !rule.p2 || rule.level === 'off') continue;
+                    
+                    const p1InCourt = courtIds.has(rule.p1);
+                    const p2InCourt = courtIds.has(rule.p2);
+
+                    if (!p1InCourt || !p2InCourt) continue;
+
+                    const isSameTeam = (t1Ids.includes(rule.p1) && t1Ids.includes(rule.p2)) || 
+                                       (t2Ids.includes(rule.p1) && t2Ids.includes(rule.p2));
+
+                    if (rule.type === 'fix') {
+                        if (!isSameTeam) {
+                            if (rule.level === 'must') extraPenalty += 1000000;
+                            else if (rule.level === 'prefer') extraPenalty += 5000;
+                        }
+                    } else if (rule.type === 'avoid') {
+                        if (isSameTeam) {
+                            if (rule.level === 'must') extraPenalty += 1000000;
+                            else if (rule.level === 'prefer') extraPenalty += 5000;
+                        }
+                    }
+                }
+
+                return { config, extraPenalty };
+            });
+
+            const minExtraPenalty = Math.min(...validConfigurations.map(c => c.extraPenalty));
+            let candidates = validConfigurations
+                .filter(c => c.extraPenalty === minExtraPenalty)
+                .map(c => c.config);
+
+            if (candidates.length === 0) candidates = configurations;
 
             for (const criterion of priorityOrder) {
-                const scores = candidates.map(config => calculatePenalty(config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap));
+                const scores = candidates.map(config => calculatePenalty(config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules));
                 const minScore = Math.min(...scores);
                 
                 candidates = candidates.filter((_, idx) => scores[idx] === minScore);
@@ -354,8 +392,8 @@
             
             const [groupName, setGroupName] = useState('');
             const [members, setMembers] = useState([]);
+            const [pairRules, setPairRules] = useState([]);
             
-            // Tab state: 'members', 'pair', 'settings'
             const [activeTab, setActiveTab] = useState('members');
 
             const [priorityOrder, setPriorityOrder] = useState(DEFAULT_PRIORITY);
@@ -376,7 +414,11 @@
             const [lastBoundaryIndex, setLastBoundaryIndex] = useState(0);
 
             const bottomRef = useRef(null);
+            const tabContentRef = useRef(null);
+            const genderAccordionBottomRef = useRef(null);
+
             const prevMembersLength = useRef(members.length);
+            const prevPairRulesLength = useRef(pairRules.length);
 
             const presentCount = members.filter(m => m.present).length;
 
@@ -393,14 +435,48 @@
                 }
             }, []);
 
+            // メンバー追加時のアンカリング（デフォルトの枠高さ360pxを超えたときだけ行う）
             useEffect(() => {
                 if (members.length > prevMembersLength.current) {
                     setTimeout(() => {
-                        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        if (tabContentRef.current) {
+                            const isOverMinHeight = tabContentRef.current.offsetHeight > 365;
+                            const rect = tabContentRef.current.getBoundingClientRect();
+                            const isBelowViewport = rect.bottom > window.innerHeight;
+                            if (isOverMinHeight || isBelowViewport) {
+                                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }
                     }, 100);
                 }
                 prevMembersLength.current = members.length;
             }, [members.length]);
+
+            // ペア設定追加時のアンカリング（デフォルトの枠高さ360pxを超えたときだけ行う）
+            useEffect(() => {
+                if (pairRules.length > prevPairRulesLength.current) {
+                    setTimeout(() => {
+                        if (tabContentRef.current) {
+                            const isOverMinHeight = tabContentRef.current.offsetHeight > 365;
+                            const rect = tabContentRef.current.getBoundingClientRect();
+                            const isBelowViewport = rect.bottom > window.innerHeight;
+                            if (isOverMinHeight || isBelowViewport) {
+                                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }
+                    }, 100);
+                }
+                prevPairRulesLength.current = pairRules.length;
+            }, [pairRules.length]);
+
+            // 条件設定画面：男女バランスの＋を展開した時に「男女バランス考慮なし」までスクロール表示する
+            useEffect(() => {
+                if (isGenderExpanded) {
+                    setTimeout(() => {
+                        genderAccordionBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 120);
+                }
+            }, [isGenderExpanded]);
 
             const triggerToast = (msg) => {
                 setToast({ show: true, message: msg });
@@ -423,6 +499,7 @@
                     id: newId,
                     name: "",
                     members: [],
+                    pairRules: [],
                     settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE },
                     matchList: []
                 };
@@ -433,6 +510,7 @@
                 setActiveGroupId(newId);
                 setGroupName("");
                 setMembers([]);
+                setPairRules([]);
                 setMatchList([]);
                 setPriorityOrder(newGroup.settings.priority);
                 setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
@@ -448,6 +526,7 @@
                 setActiveGroupId(gId);
                 setGroupName(target.name);
                 setMembers(target.members || []);
+                setPairRules(target.pairRules || []);
                 setMatchList(target.matchList || []);
                 setPriorityOrder(ensurePriorityList(target.settings?.priority));
                 setGenderMode(normalizeGenderMode(target.settings?.genderMode));
@@ -472,12 +551,18 @@
                 const resolvedName = groupName.trim() || "（名称未設定のグループ）";
                 const cleanMembers = members.filter(m => m.name.trim() !== "");
 
+                const validMemberIds = new Set(cleanMembers.map(m => m.id));
+                const cleanPairRules = pairRules.filter(r => 
+                    r.p1 && r.p2 && validMemberIds.has(r.p1) && validMemberIds.has(r.p2)
+                );
+
                 const updatedGroups = groups.map(g => {
                     if (g.id === activeGroupId) {
                         return { 
                             ...g, 
                             name: resolvedName, 
                             members: cleanMembers, 
+                            pairRules: cleanPairRules,
                             settings: { priority: priorityOrder, genderMode: genderMode },
                             matchList: matchList 
                         };
@@ -486,6 +571,7 @@
                 });
                 setGroups(updatedGroups);
                 setMembers(cleanMembers);
+                setPairRules(cleanPairRules);
                 setGroupName(resolvedName);
                 localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
                 triggerToast("💾 保存しました");
@@ -521,6 +607,14 @@
                 setMembers(copy);
             };
 
+            const toggleMemberLevel = (index) => {
+                const copy = [...members];
+                const currentLevel = copy[index].level || '未設定';
+                const nextIdx = (LEVELS.indexOf(currentLevel) + 1) % LEVELS.length;
+                copy[index].level = LEVELS[nextIdx];
+                setMembers(copy);
+            };
+
             const toggleMemberPresence = (index) => {
                 const copy = [...members];
                 if (!copy[index].present && presentCount >= 12) {
@@ -532,12 +626,15 @@
             };
 
             const deleteMember = (index) => {
+                const deletedMemberId = members[index].id;
                 const copy = [...members];
                 copy.splice(index, 1);
                 setMembers(copy);
+
+                setPairRules(prev => prev.filter(r => r.p1 !== deletedMemberId && r.p2 !== deletedMemberId));
             };
 
-            const handleAddMember = (name, gender) => {
+            const handleAddMember = (name, gender, level = '未設定') => {
                 if (members.some(m => m.name === name)) {
                     triggerToast("⚠️ 同じメンバー名は使えません");
                     return;
@@ -547,10 +644,93 @@
                     id: `member-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
                     name: name.slice(0, 4),
                     gender: gender,
+                    level: level,
                     present: isPresent
                 };
                 setMembers([...members, newM]);
                 if (!isPresent) triggerToast("⚠️ 最大参加人数の12名に達したため不参加で登録しました");
+            };
+
+            const validatePairRule = (targetRuleId, newP1, newP2, newType, newLevel) => {
+                if (!newP1 || !newP2) return true;
+
+                if (newP1 === newP2) {
+                    triggerToast("⚠️ 同じメンバー同士は選択できません");
+                    return false;
+                }
+
+                for (const rule of pairRules) {
+                    if (rule.id === targetRuleId) continue;
+                    if (!rule.p1 || !rule.p2) continue;
+
+                    const isSamePair = (rule.p1 === newP1 && rule.p2 === newP2) || (rule.p1 === newP2 && rule.p2 === newP1);
+
+                    if (isSamePair) {
+                        triggerToast("⚠️ 同じペアの設定が既に存在します");
+                        return false;
+                    }
+                }
+
+                if (newType === 'fix' && newLevel !== 'off') {
+                    for (const rule of pairRules) {
+                        if (rule.id === targetRuleId) continue;
+                        if (!rule.p1 || !rule.p2 || rule.type !== 'fix' || rule.level === 'off') continue;
+
+                        if (rule.p1 === newP1 || rule.p2 === newP1) {
+                            const partnerId = rule.p1 === newP1 ? rule.p2 : rule.p1;
+                            const partner = members.find(m => m.id === partnerId);
+                            const currentM = members.find(m => m.id === newP1);
+                            triggerToast(`⚠️ ${currentM?.name || ''}さんはすでに${partner?.name || ''}さんと固定ペアになっています`);
+                            return false;
+                        }
+
+                        if (rule.p1 === newP2 || rule.p2 === newP2) {
+                            const partnerId = rule.p1 === newP2 ? rule.p2 : rule.p1;
+                            const partner = members.find(m => m.id === partnerId);
+                            const currentM = members.find(m => m.id === newP2);
+                            triggerToast(`⚠️ ${currentM?.name || ''}さんはすでに${partner?.name || ''}さんと固定ペアになっています`);
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            };
+
+            const handleAddPairRule = () => {
+                const newRule = {
+                    id: `pair-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    p1: '',
+                    p2: '',
+                    type: 'fix',
+                    level: 'must'
+                };
+                setPairRules([...pairRules, newRule]);
+            };
+
+            const handleUpdatePairRule = (id, field, value) => {
+                const rule = pairRules.find(r => r.id === id);
+                if (!rule) return;
+
+                let nextP1 = field === 'p1' ? value : rule.p1;
+                let nextP2 = field === 'p2' ? value : rule.p2;
+                let nextType = field === 'type' ? value : rule.type;
+                let nextLevel = field === 'level' ? value : rule.level;
+
+                if (!validatePairRule(id, nextP1, nextP2, nextType, nextLevel)) {
+                    return;
+                }
+
+                setPairRules(pairRules.map(r => {
+                    if (r.id === id) {
+                        return { ...r, [field]: value };
+                    }
+                    return r;
+                }));
+            };
+
+            const handleDeletePairRule = (id) => {
+                setPairRules(pairRules.filter(r => r.id !== id));
             };
 
             const handleCreateMatchTable = () => {
@@ -569,7 +749,7 @@
                 activeAttendees.forEach(m => baseStatsMap[m.id] = {matchCount:0, consecutivePlay:0, consecutiveRest:0});
 
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, [], priorityOrder, genderMode, baseStatsMap);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, [], priorityOrder, genderMode, baseStatsMap, pairRules);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
                 }
@@ -623,7 +803,7 @@
 
                 const generated = [];
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, baseStatsMap);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, baseStatsMap, pairRules);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
                 }
@@ -670,7 +850,7 @@
                 const baseStatsMap = calculateBaseStats(matchList, cleanMembers);
 
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextTen, matchList, priorityOrder, genderMode, baseStatsMap);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextTen, matchList, priorityOrder, genderMode, baseStatsMap, pairRules);
                     if (nextMatch) nextTen.push(nextMatch);
                     else break;
                 }
@@ -786,6 +966,24 @@
                 );
             };
 
+            const getLevelBadgeClass = (level) => {
+                switch (level) {
+                    case '初級':
+                        return 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+                    case '初中級':
+                        return 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200';
+                    case '中級':
+                        return 'bg-sky-200 text-sky-800 border-sky-400 hover:bg-sky-300';
+                    case '中上級':
+                        return 'bg-indigo-300 text-indigo-900 border-indigo-500 hover:bg-indigo-400';
+                    case '上級':
+                        return 'bg-purple-400 text-white border-purple-600 hover:bg-purple-500';
+                    case '未設定':
+                    default:
+                        return 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
+                }
+            };
+
             const d = new Date();
             const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
             const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
@@ -899,7 +1097,6 @@
                         {}
                         {page === 'group' && (
                             <div className="space-y-3">
-                                {/* グループ名入力カード */}
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
@@ -943,56 +1140,76 @@
                                     )}
                                 </div>
 
-                                {/* タブメニュー ＆ コンテンツカード */}
                                 <div>
-                                    {/* タブバー */}
-                                    <div className="flex space-x-1 border-b border-slate-200 px-1 pt-1 bg-slate-100/70 rounded-t-2xl">
+                                    {/* タブヘッダー ＆ 保存ボタン */}
+                                    <div className="flex items-center justify-between border-b border-slate-300 px-1 pt-1 bg-slate-200/50 rounded-t-2xl">
+                                        <div className="flex space-x-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveTab('members')}
+                                                className={`px-3.5 py-2 text-xs font-extrabold rounded-t-xl transition-all border-t border-x ${
+                                                    activeTab === 'members'
+                                                        ? 'bg-white text-emerald-600 shadow-sm border-slate-300 -mb-px relative z-10'
+                                                        : 'bg-slate-200/90 text-slate-600 hover:text-slate-800 border-slate-300 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                メンバー
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setActiveTab('pair');
+                                                    if (pairRules.length === 0) {
+                                                        handleAddPairRule();
+                                                    }
+                                                }}
+                                                className={`px-3.5 py-2 text-xs font-extrabold rounded-t-xl transition-all border-t border-x ${
+                                                    activeTab === 'pair'
+                                                        ? 'bg-white text-emerald-600 shadow-sm border-slate-300 -mb-px relative z-10'
+                                                        : 'bg-slate-200/90 text-slate-600 hover:text-slate-800 border-slate-300 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                ペア設定
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveTab('settings')}
+                                                className={`px-3.5 py-2 text-xs font-extrabold rounded-t-xl transition-all border-t border-x ${
+                                                    activeTab === 'settings'
+                                                        ? 'bg-white text-emerald-600 shadow-sm border-slate-300 -mb-px relative z-10'
+                                                        : 'bg-slate-200/90 text-slate-600 hover:text-slate-800 border-slate-300 hover:bg-slate-200'
+                                                }`}
+                                            >
+                                                条件設定
+                                            </button>
+                                        </div>
+
+                                        {/* 保存ボタン */}
                                         <button
                                             type="button"
-                                            onClick={() => setActiveTab('members')}
-                                            className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all ${
-                                                activeTab === 'members'
-                                                    ? 'bg-white text-emerald-600 shadow-sm border-t border-x border-slate-200 -mb-px'
-                                                    : 'text-slate-500 hover:text-slate-700 bg-transparent border-t border-x border-transparent'
-                                            }`}
+                                            onClick={handleSaveGroup}
+                                            className="mb-1 mr-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition-all shadow-sm active:scale-95 flex items-center space-x-1 shrink-0"
                                         >
-                                            メンバー
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveTab('pair')}
-                                            className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all ${
-                                                activeTab === 'pair'
-                                                    ? 'bg-white text-emerald-600 shadow-sm border-t border-x border-slate-200 -mb-px'
-                                                    : 'text-slate-500 hover:text-slate-700 bg-transparent border-t border-x border-transparent'
-                                            }`}
-                                        >
-                                            ペア
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveTab('settings')}
-                                            className={`px-4 py-2 text-xs font-extrabold rounded-t-xl transition-all ${
-                                                activeTab === 'settings'
-                                                    ? 'bg-white text-emerald-600 shadow-sm border-t border-x border-slate-200 -mb-px'
-                                                    : 'text-slate-500 hover:text-slate-700 bg-transparent border-t border-x border-transparent'
-                                            }`}
-                                        >
-                                            条件設定
+                                            <span>💾 保存</span>
                                         </button>
                                     </div>
 
-                                    {/* タブコンテンツ */}
-                                    <div className="bg-white rounded-b-2xl rounded-tr-2xl p-3 border border-slate-200 border-t-0 shadow-sm">
-                                        {}
+                                    {/* タブコンテンツエリア（デフォルト高さ min-h-[360px] 固定） */}
+                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm min-h-[360px]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
-                                                <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-0.5 text-[11px] font-bold text-slate-500">
-                                                    <div className="w-14 text-center text-emerald-600 font-extrabold shrink-0">
-                                                        参加 {presentCount}名
+                                                <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-1 text-[11px] font-bold text-slate-500 border-b border-slate-100">
+                                                    <div className="w-11 text-center text-emerald-600 font-extrabold shrink-0">
+                                                        参加{presentCount}名
                                                     </div>
-                                                    <div className="flex-1 text-left pl-1 text-slate-400 font-normal overflow-visible">
-                                                        メンバー名（4文字以内）
+                                                    <div className="flex-1 text-center text-slate-400 font-normal min-w-0">
+                                                        名前(4文字以内)
+                                                    </div>
+                                                    <div className="w-12 text-center text-slate-400 font-normal shrink-0">
+                                                        性別
+                                                    </div>
+                                                    <div className="w-16 text-center text-slate-400 font-normal shrink-0">
+                                                        レベル
                                                     </div>
                                                     <div className="w-6 shrink-0"></div>
                                                 </div>
@@ -1003,7 +1220,7 @@
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleMemberPresence(index)}
-                                                                className={`w-14 py-1 text-xs font-bold rounded shadow-sm transition-all shrink-0 ${
+                                                                className={`w-11 py-1 text-xs font-bold rounded shadow-sm transition-all shrink-0 ${
                                                                     m.present 
                                                                     ? 'bg-emerald-500 text-white' 
                                                                     : 'bg-slate-200 text-slate-500'
@@ -1012,19 +1229,21 @@
                                                                 {m.present ? '参加' : '不参加'}
                                                             </button>
 
+                                                            {/* 名前入力枠 */}
                                                             <input
                                                                 type="text"
                                                                 value={m.name}
                                                                 onChange={(e) => updateMemberName(index, e.target.value)}
                                                                 maxLength={4}
-                                                                className={`flex-1 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
+                                                                className={`flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-xs font-bold shrink-0 ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
                                                             />
 
-                                                            <div className="flex space-x-1 shrink-0">
+                                                            {/* 男女トグル */}
+                                                            <div className="flex space-x-0.5 shrink-0 w-12">
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleMemberGender(index, 'M')}
-                                                                    className={`w-8 py-1 text-xs font-bold rounded transition-all ${
+                                                                    className={`w-6 py-1 text-xs font-bold rounded transition-all ${
                                                                         m.gender === 'M'
                                                                         ? 'bg-sky-500 text-white shadow-sm'
                                                                         : 'bg-white text-slate-400 border border-slate-200'
@@ -1035,7 +1254,7 @@
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleMemberGender(index, 'F')}
-                                                                    className={`w-8 py-1 text-xs font-bold rounded transition-all ${
+                                                                    className={`w-6 py-1 text-xs font-bold rounded transition-all ${
                                                                         m.gender === 'F'
                                                                         ? 'bg-rose-500 text-white shadow-sm'
                                                                         : 'bg-white text-slate-400 border border-slate-200'
@@ -1045,23 +1264,120 @@
                                                                 </button>
                                                             </div>
 
-                                                            <button type="button" onClick={() => deleteMember(index)} className="p-1 text-slate-300 hover:text-rose-500 shrink-0">
+                                                            {/* レベルトグルボタン */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleMemberLevel(index)}
+                                                                className={`w-16 py-1 px-0.5 text-xs font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(m.level || '未設定')}`}
+                                                                title="タップしてレベル変更"
+                                                            >
+                                                                {m.level || '未設定'}
+                                                            </button>
+
+                                                            {/* ゴミ箱ボタン */}
+                                                            <button type="button" onClick={() => deleteMember(index)} className="w-6 p-1 text-slate-300 hover:text-rose-500 shrink-0 flex justify-center">
                                                                 <TrashIcon />
                                                             </button>
                                                         </div>
                                                     ))}
 
-                                                    <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} />
+                                                    <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} getLevelBadgeClass={getLevelBadgeClass} />
                                                 </div>
                                             </div>
                                         )}
 
                                         {}
                                         {activeTab === 'pair' && (
-                                            <div className="py-10 text-center text-slate-400 space-y-1">
-                                                <div className="text-2xl mb-1">🎾</div>
-                                                <div className="font-bold text-slate-600 text-sm">固定ペア・禁止ペア設定</div>
-                                                <p className="text-xs text-slate-400">（今後の機能拡張で追加予定です）</p>
+                                            <div className="space-y-3 py-1">
+                                                <div className="text-xs font-bold text-slate-600 text-left pb-1 border-b border-slate-100">
+                                                    固定または回避するペアを設定
+                                                </div>
+
+                                                <div className="space-y-1.5">
+                                                    {pairRules.map((rule) => {
+                                                        const p1Options = members.filter(m => m.id !== rule.p2);
+                                                        const p2Options = members.filter(m => m.id !== rule.p1);
+
+                                                        return (
+                                                            <div key={rule.id} className="flex items-center space-x-1.5 p-1 border-b border-slate-100 text-xs">
+                                                                <select
+                                                                    value={rule.p1}
+                                                                    onChange={(e) => handleUpdatePairRule(rule.id, 'p1', e.target.value)}
+                                                                    className="flex-1 bg-white border border-slate-200 rounded px-1.5 py-1 font-bold text-slate-700 outline-none text-xs min-w-0"
+                                                                >
+                                                                    <option value="">選択</option>
+                                                                    {p1Options.map(m => (
+                                                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                                                    ))}
+                                                                </select>
+
+                                                                <span className="font-extrabold text-slate-400 text-xs shrink-0 px-0.5">＆</span>
+
+                                                                <select
+                                                                    value={rule.p2}
+                                                                    onChange={(e) => handleUpdatePairRule(rule.id, 'p2', e.target.value)}
+                                                                    disabled={!rule.p1}
+                                                                    className="flex-1 bg-white border border-slate-200 rounded px-1.5 py-1 font-bold text-slate-700 outline-none text-xs min-w-0 disabled:bg-slate-100 disabled:text-slate-400"
+                                                                >
+                                                                    <option value="">選択</option>
+                                                                    {p2Options.map(m => (
+                                                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                                                    ))}
+                                                                </select>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const nextType = rule.type === 'fix' ? 'avoid' : 'fix';
+                                                                        handleUpdatePairRule(rule.id, 'type', nextType);
+                                                                    }}
+                                                                    className={`px-2 py-1 font-extrabold rounded text-xs transition-all shrink-0 ${
+                                                                        rule.type === 'fix'
+                                                                            ? 'bg-emerald-500 text-white shadow-sm'
+                                                                            : 'bg-amber-500 text-white shadow-sm'
+                                                                    }`}
+                                                                >
+                                                                    {rule.type === 'fix' ? '固定' : '回避'}
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const levels = ['must', 'prefer', 'off'];
+                                                                        const nextIndex = (levels.indexOf(rule.level) + 1) % levels.length;
+                                                                        handleUpdatePairRule(rule.id, 'level', levels[nextIndex]);
+                                                                    }}
+                                                                    className={`px-2 py-1 font-extrabold rounded text-xs transition-all shrink-0 ${
+                                                                        rule.level === 'must'
+                                                                            ? 'bg-slate-800 text-white'
+                                                                            : rule.level === 'prefer'
+                                                                            ? 'bg-slate-500 text-white'
+                                                                            : 'bg-slate-200 text-slate-400'
+                                                                    }`}
+                                                                >
+                                                                    {rule.level === 'must' ? '必須' : rule.level === 'prefer' ? '優先' : 'オフ'}
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeletePairRule(rule.id)}
+                                                                    className="p-1 text-slate-300 hover:text-rose-500 shrink-0 transition-colors"
+                                                                    title="削除"
+                                                                >
+                                                                    <TrashIcon />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddPairRule}
+                                                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                                >
+                                                    ＋ ペアを追加する
+                                                </button>
                                             </div>
                                         )}
 
@@ -1069,7 +1385,7 @@
                                         {activeTab === 'settings' && (
                                             <div className="space-y-3 pt-1">
                                                 <div className="flex justify-between items-center mb-2">
-                                                    <h3 className="text-xs font-bold text-slate-700">組み合わせの優先順位設定</h3>
+                                                    <h3 className="text-xs font-bold text-slate-700">組み合わせの優先順位を設定</h3>
                                                     <button 
                                                         type="button"
                                                         onClick={() => {
@@ -1143,7 +1459,7 @@
                                                                                         />
                                                                                         <span className="text-sm font-bold text-slate-600">男女バランスやや考慮</span>
                                                                                     </label>
-                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
+                                                                                    <label ref={genderAccordionBottomRef} className="flex items-center space-x-2 py-0.5 cursor-pointer">
                                                                                         <input 
                                                                                             type="radio" 
                                                                                             name="accordionGenderMode"
@@ -1192,20 +1508,7 @@
                                     </div>
                                 </div>
 
-                                {}
                                 <div className="pt-1 space-y-1.5">
-                                    {/* 右上に配置した保存ボタン */}
-                                    <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={handleSaveGroup}
-                                            className="bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1 rounded-lg transition-colors shadow-sm active:scale-95"
-                                        >
-                                            💾 保存
-                                        </button>
-                                    </div>
-
-                                    {/* 対戦表作成ボタン領域 */}
                                     <div className="flex space-x-2">
                                         <button
                                             type="button"
@@ -1452,44 +1755,63 @@
             );
         }
 
-        function EmptyRowCreator({ onAddMember, nextNumber }) {
+        function EmptyRowCreator({ onAddMember, nextNumber, getLevelBadgeClass }) {
             const [name, setName] = useState("");
+            const [level, setLevel] = useState("未設定");
             
             const handleTriggerAdd = (gender) => {
                 const finalName = name.trim() || `名前${nextNumber}`;
-                onAddMember(finalName, gender);
+                onAddMember(finalName, gender, level);
                 setName(""); 
+            };
+
+            const toggleLevel = () => {
+                const nextIdx = (LEVELS.indexOf(level) + 1) % LEVELS.length;
+                setLevel(LEVELS[nextIdx]);
             };
 
             return (
                 <div className="flex items-center space-x-1.5 p-1">
-                    <div className="w-14 shrink-0"></div>
+                    <div className="w-11 shrink-0"></div>
                     
+                    {/* 名前入力枠 */}
                     <input
                         type="text"
                         value={name}
                         onChange={(e) => { if (e.target.value.length <= 4) setName(e.target.value); }}
                         placeholder={`名前${nextNumber}`}
                         maxLength={4}
-                        className="flex-1 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
+                        className="flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-xs font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-normal shrink-0"
                     />
 
-                    <div className="flex space-x-1 shrink-0">
+                    {/* 男女ボタン */}
+                    <div className="flex space-x-0.5 shrink-0 w-12">
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('M')}
-                            className="w-8 py-1 text-xs font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
+                            className="w-6 py-1 text-xs font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
                         >
                             男
                         </button>
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('F')}
-                            className="w-8 py-1 text-xs font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
+                            className="w-6 py-1 text-xs font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
                         >
                             女
                         </button>
                     </div>
+
+                    {/* レベルトグルボタン */}
+                    <button
+                        type="button"
+                        onClick={toggleLevel}
+                        className={`w-16 py-1 px-0.5 text-xs font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(level)}`}
+                        title="タップしてレベル変更"
+                    >
+                        {level}
+                    </button>
+
                     <div className="w-6 shrink-0"></div>
                 </div>
             );
