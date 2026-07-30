@@ -33,6 +33,13 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        const SettingsIcon = ({ className = "w-4 h-4" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+            </svg>
+        );
+
         const TrashIcon = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -56,7 +63,7 @@
 
         const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'card', 'gender', 'level'];
         const DEFAULT_GENDER_MODE = 'consider';
-
+        const DEFAULT_LEVEL_MODE = 'consider';
         const LEVELS = ['未設定', '初級', '初中級', '中級', '中上級', '上級'];
 
         const ensurePriorityList = (pList) => {
@@ -71,6 +78,42 @@
         const normalizeGenderMode = (mode) => {
             if (['mix', 'balance', 'consider', 'none'].includes(mode)) return mode;
             return DEFAULT_GENDER_MODE;
+        };
+
+        const normalizeLevelMode = (mode) => {
+            if (['prioritize', 'consider', 'none'].includes(mode)) return mode;
+            return DEFAULT_LEVEL_MODE;
+        };
+
+        const getGenderBadgeText = (mode) => {
+            switch (mode) {
+                case 'mix': return 'ミックス';
+                case 'balance': return '均等';
+                case 'consider': return 'やや考慮';
+                case 'none': return '考慮なし';
+                default: return 'やや考慮';
+            }
+        };
+
+        const cycleGenderMode = (current) => {
+            const modes = ['mix', 'balance', 'consider', 'none'];
+            const idx = modes.indexOf(current);
+            return modes[(idx + 1) % modes.length];
+        };
+
+        const getLevelBadgeText = (mode) => {
+            switch (mode) {
+                case 'prioritize': return '重視';
+                case 'consider': return 'やや考慮';
+                case 'none': return '考慮なし';
+                default: return 'やや考慮';
+            }
+        };
+
+        const cycleLevelMode = (current) => {
+            const modes = ['prioritize', 'consider', 'none'];
+            const idx = modes.indexOf(current);
+            return modes[(idx + 1) % modes.length];
         };
 
         const calculateBaseStats = (pastHistory, currentMembers) => {
@@ -152,12 +195,37 @@
             return stats;
         };
 
-        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules = []) => {
+        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules) => {
             const fullHistory = [...pastHistory, ...futureHistory];
             const courtIds = new Set(config.players.map(p => p.id));
             
-            if (criterion === 'level') {
-                return 0;
+            if (criterion === 'pair_rule_must' || criterion === 'pair_rule_prefer') {
+                const targetLevel = criterion === 'pair_rule_must' ? 'must' : 'prefer';
+                let score = 0;
+                
+                const t1 = config.t1.map(p => p.id);
+                const t2 = config.t2.map(p => p.id);
+                const players = config.players.map(p => p.id);
+                
+                const isPair = (pA, pB) => {
+                    return (t1.includes(pA) && t1.includes(pB)) || (t2.includes(pA) && t2.includes(pB));
+                };
+
+                pairRules.forEach(rule => {
+                    if (rule.level !== targetLevel) return;
+                    
+                    const p1 = rule.p1;
+                    const p2 = rule.p2;
+                    if (!p1 || !p2) return;
+                    
+                    if (rule.type === 'fix') {
+                        if (players.includes(p1) && !isPair(p1, p2)) score += 10;
+                        if (players.includes(p2) && !isPair(p1, p2)) score += 10;
+                    } else if (rule.type === 'avoid') {
+                        if (isPair(p1, p2)) score += 10;
+                    }
+                });
+                return score;
             }
 
             if (criterion === 'count') {
@@ -301,7 +369,7 @@
             return 0;
         };
 
-        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, baseStatsMap, pairRules = []) {
+        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, baseStatsMap, pairRules) {
             if (presentMembers.length < 4) return null;
 
             const N = presentMembers.length;
@@ -323,48 +391,18 @@
                     }
                 }
             }
+            
+            const evaluationSteps = [];
+            evaluationSteps.push('pair_rule_must');
+            if (priorityOrder.length > 0) evaluationSteps.push(priorityOrder[0]);
+            evaluationSteps.push('pair_rule_prefer');
+            for (let i = 1; i < priorityOrder.length; i++) {
+                evaluationSteps.push(priorityOrder[i]);
+            }
 
-            let validConfigurations = configurations.map(config => {
-                let extraPenalty = 0;
-                const t1Ids = config.t1.map(p => p.id);
-                const t2Ids = config.t2.map(p => p.id);
-                const courtIds = new Set(config.players.map(p => p.id));
+            let candidates = [...configurations];
 
-                for (const rule of pairRules) {
-                    if (!rule.p1 || !rule.p2 || rule.level === 'off') continue;
-                    
-                    const p1InCourt = courtIds.has(rule.p1);
-                    const p2InCourt = courtIds.has(rule.p2);
-
-                    if (!p1InCourt || !p2InCourt) continue;
-
-                    const isSameTeam = (t1Ids.includes(rule.p1) && t1Ids.includes(rule.p2)) || 
-                                       (t2Ids.includes(rule.p1) && t2Ids.includes(rule.p2));
-
-                    if (rule.type === 'fix') {
-                        if (!isSameTeam) {
-                            if (rule.level === 'must') extraPenalty += 1000000;
-                            else if (rule.level === 'prefer') extraPenalty += 5000;
-                        }
-                    } else if (rule.type === 'avoid') {
-                        if (isSameTeam) {
-                            if (rule.level === 'must') extraPenalty += 1000000;
-                            else if (rule.level === 'prefer') extraPenalty += 5000;
-                        }
-                    }
-                }
-
-                return { config, extraPenalty };
-            });
-
-            const minExtraPenalty = Math.min(...validConfigurations.map(c => c.extraPenalty));
-            let candidates = validConfigurations
-                .filter(c => c.extraPenalty === minExtraPenalty)
-                .map(c => c.config);
-
-            if (candidates.length === 0) candidates = configurations;
-
-            for (const criterion of priorityOrder) {
+            for (const criterion of evaluationSteps) {
                 const scores = candidates.map(config => calculatePenalty(config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules));
                 const minScore = Math.min(...scores);
                 
@@ -398,7 +436,7 @@
 
             const [priorityOrder, setPriorityOrder] = useState(DEFAULT_PRIORITY);
             const [genderMode, setGenderMode] = useState(DEFAULT_GENDER_MODE);
-            const [isGenderExpanded, setIsGenderExpanded] = useState(false);
+            const [levelMode, setLevelMode] = useState(DEFAULT_LEVEL_MODE);
             
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -415,7 +453,6 @@
 
             const bottomRef = useRef(null);
             const tabContentRef = useRef(null);
-            const genderAccordionBottomRef = useRef(null);
 
             const prevMembersLength = useRef(members.length);
             const prevPairRulesLength = useRef(pairRules.length);
@@ -435,7 +472,6 @@
                 }
             }, []);
 
-            // メンバー追加時のアンカリング（デフォルトの枠高さ360pxを超えたときだけ行う）
             useEffect(() => {
                 if (members.length > prevMembersLength.current) {
                     setTimeout(() => {
@@ -452,7 +488,6 @@
                 prevMembersLength.current = members.length;
             }, [members.length]);
 
-            // ペア設定追加時のアンカリング（デフォルトの枠高さ360pxを超えたときだけ行う）
             useEffect(() => {
                 if (pairRules.length > prevPairRulesLength.current) {
                     setTimeout(() => {
@@ -468,15 +503,6 @@
                 }
                 prevPairRulesLength.current = pairRules.length;
             }, [pairRules.length]);
-
-            // 条件設定画面：男女バランスの＋を展開した時に「男女バランス考慮なし」までスクロール表示する
-            useEffect(() => {
-                if (isGenderExpanded) {
-                    setTimeout(() => {
-                        genderAccordionBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 120);
-                }
-            }, [isGenderExpanded]);
 
             const triggerToast = (msg) => {
                 setToast({ show: true, message: msg });
@@ -500,7 +526,7 @@
                     name: "",
                     members: [],
                     pairRules: [],
-                    settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE },
+                    settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE, levelMode: DEFAULT_LEVEL_MODE },
                     matchList: []
                 };
                 const updated = [...groups, newGroup];
@@ -514,7 +540,7 @@
                 setMatchList([]);
                 setPriorityOrder(newGroup.settings.priority);
                 setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
-                setIsGenderExpanded(false);
+                setLevelMode(normalizeLevelMode(newGroup.settings.levelMode));
                 setActiveTab('members');
                 setDeleteConfirmId(null);
                 setPage('group');
@@ -530,7 +556,7 @@
                 setMatchList(target.matchList || []);
                 setPriorityOrder(ensurePriorityList(target.settings?.priority));
                 setGenderMode(normalizeGenderMode(target.settings?.genderMode));
-                setIsGenderExpanded(false);
+                setLevelMode(normalizeLevelMode(target.settings?.levelMode));
                 setActiveTab('members');
                 setDeleteConfirmId(null);
                 setPage('group');
@@ -563,7 +589,7 @@
                             name: resolvedName, 
                             members: cleanMembers, 
                             pairRules: cleanPairRules,
-                            settings: { priority: priorityOrder, genderMode: genderMode },
+                            settings: { priority: priorityOrder, genderMode: genderMode, levelMode: levelMode },
                             matchList: matchList 
                         };
                     }
@@ -686,7 +712,7 @@
 
                         if (rule.p1 === newP2 || rule.p2 === newP2) {
                             const partnerId = rule.p1 === newP2 ? rule.p2 : rule.p1;
-                            const partner = members.find(m => m.id === partnerId);
+                            const partner = members.find(m => m.id === newP2);
                             const currentM = members.find(m => m.id === newP2);
                             triggerToast(`⚠️ ${currentM?.name || ''}さんはすでに${partner?.name || ''}さんと固定ペアになっています`);
                             return false;
@@ -944,16 +970,6 @@
                 return { name: m.name, isMale: m.gender === "M" };
             };
 
-            const getGenderBadgeText = (mode) => {
-                switch (mode) {
-                    case 'mix': return 'ミックス';
-                    case 'balance': return '均等';
-                    case 'consider': return 'やや考慮';
-                    case 'none': return '考慮なし';
-                    default: return 'やや考慮';
-                }
-            };
-
             const NameSpan = ({ player }) => {
                 const len = player.name.length;
                 const textSize = len >= 4 ? 'text-xs' : 'text-sm';
@@ -998,6 +1014,7 @@
                     </header>
 
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4">
+                        {}
                         {page === 'top' && (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md text-center">
@@ -1141,7 +1158,6 @@
                                 </div>
 
                                 <div>
-                                    {/* タブヘッダー ＆ 保存ボタン */}
                                     <div className="flex items-center justify-between border-b border-slate-300 px-1 pt-1 bg-slate-200/50 rounded-t-2xl">
                                         <div className="flex space-x-1">
                                             <button
@@ -1184,7 +1200,6 @@
                                             </button>
                                         </div>
 
-                                        {/* 保存ボタン */}
                                         <button
                                             type="button"
                                             onClick={handleSaveGroup}
@@ -1194,7 +1209,7 @@
                                         </button>
                                     </div>
 
-                                    {/* タブコンテンツエリア（デフォルト高さ min-h-[360px] 固定） */}
+                                    {}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm min-h-[360px]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1229,7 +1244,6 @@
                                                                 {m.present ? '参加' : '不参加'}
                                                             </button>
 
-                                                            {/* 名前入力枠 */}
                                                             <input
                                                                 type="text"
                                                                 value={m.name}
@@ -1238,7 +1252,6 @@
                                                                 className={`flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-xs font-bold shrink-0 ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
                                                             />
 
-                                                            {/* 男女トグル */}
                                                             <div className="flex space-x-0.5 shrink-0 w-12">
                                                                 <button
                                                                     type="button"
@@ -1264,7 +1277,6 @@
                                                                 </button>
                                                             </div>
 
-                                                            {/* レベルトグルボタン */}
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleMemberLevel(index)}
@@ -1274,7 +1286,6 @@
                                                                 {m.level || '未設定'}
                                                             </button>
 
-                                                            {/* ゴミ箱ボタン */}
                                                             <button type="button" onClick={() => deleteMember(index)} className="w-6 p-1 text-slate-300 hover:text-rose-500 shrink-0 flex justify-center">
                                                                 <TrashIcon />
                                                             </button>
@@ -1286,7 +1297,6 @@
                                             </div>
                                         )}
 
-                                        {}
                                         {activeTab === 'pair' && (
                                             <div className="space-y-3 py-1">
                                                 <div className="text-xs font-bold text-slate-600 text-left pb-1 border-b border-slate-100">
@@ -1391,6 +1401,7 @@
                                                         onClick={() => {
                                                             setPriorityOrder(DEFAULT_PRIORITY);
                                                             setGenderMode(DEFAULT_GENDER_MODE);
+                                                            setLevelMode(DEFAULT_LEVEL_MODE);
                                                         }} 
                                                         className="text-xs text-emerald-600 font-bold underline hover:text-emerald-700"
                                                     >
@@ -1401,6 +1412,7 @@
                                                 <div className="space-y-1.5">
                                                     {priorityOrder.map((key, index) => {
                                                         const isGenderItem = key === 'gender';
+                                                        const isLevelItem = key === 'level';
 
                                                         return (
                                                             <div key={key} className="flex items-center space-x-2">
@@ -1408,74 +1420,25 @@
                                                                     {index + 1}
                                                                 </div>
 
-                                                                <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 shadow-sm overflow-hidden">
-                                                                    {isGenderItem ? (
-                                                                        <div>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setIsGenderExpanded(!isGenderExpanded)}
-                                                                                className="w-full py-1.5 px-3 flex items-center justify-between text-left focus:outline-none hover:bg-slate-100/60 transition-colors"
-                                                                            >
-                                                                                <span className="font-bold text-slate-700">{PRIORITY_LABELS[key]}</span>
-                                                                                <div className="flex items-center space-x-1.5">
-                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
-                                                                                        {getGenderBadgeText(genderMode)}
-                                                                                    </span>
-                                                                                    <span className="text-slate-700 text-base font-extrabold">
-                                                                                        {isGenderExpanded ? '－' : '＋'}
-                                                                                    </span>
-                                                                                </div>
-                                                                            </button>
-
-                                                                            {isGenderExpanded && (
-                                                                                <div className="px-3 pb-2.5 pt-1 border-t border-slate-200/60 bg-white/70 space-y-1 font-normal">
-                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
-                                                                                        <input 
-                                                                                            type="radio" 
-                                                                                            name="accordionGenderMode"
-                                                                                            checked={genderMode === 'mix'} 
-                                                                                            onChange={() => setGenderMode('mix')} 
-                                                                                            className="accent-emerald-500" 
-                                                                                        />
-                                                                                        <span className="text-sm font-bold text-slate-600">ミックスダブルス</span>
-                                                                                    </label>
-                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
-                                                                                        <input 
-                                                                                            type="radio" 
-                                                                                            name="accordionGenderMode"
-                                                                                            checked={genderMode === 'balance'} 
-                                                                                            onChange={() => setGenderMode('balance')} 
-                                                                                            className="accent-emerald-500" 
-                                                                                        />
-                                                                                        <span className="text-sm font-bold text-slate-600">男女バランス均等</span>
-                                                                                    </label>
-                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
-                                                                                        <input 
-                                                                                            type="radio" 
-                                                                                            name="accordionGenderMode"
-                                                                                            checked={genderMode === 'consider'} 
-                                                                                            onChange={() => setGenderMode('consider')} 
-                                                                                            className="accent-emerald-500" 
-                                                                                        />
-                                                                                        <span className="text-sm font-bold text-slate-600">男女バランスやや考慮</span>
-                                                                                    </label>
-                                                                                    <label ref={genderAccordionBottomRef} className="flex items-center space-x-2 py-0.5 cursor-pointer">
-                                                                                        <input 
-                                                                                            type="radio" 
-                                                                                            name="accordionGenderMode"
-                                                                                            checked={genderMode === 'none'} 
-                                                                                            onChange={() => setGenderMode('none')} 
-                                                                                            className="accent-emerald-500" 
-                                                                                        />
-                                                                                        <span className="text-sm font-bold text-slate-600">男女バランス考慮なし</span>
-                                                                                    </label>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="py-1.5 px-3">
-                                                                            {PRIORITY_LABELS[key]}
-                                                                        </div>
+                                                                <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 shadow-sm overflow-hidden py-1.5 px-3 flex items-center justify-between">
+                                                                    <span>{PRIORITY_LABELS[key]}</span>
+                                                                    {isGenderItem && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setGenderMode(cycleGenderMode(genderMode))}
+                                                                            className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors cursor-pointer active:scale-95 shrink-0"
+                                                                        >
+                                                                            {getGenderBadgeText(genderMode)}
+                                                                        </button>
+                                                                    )}
+                                                                    {isLevelItem && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setLevelMode(cycleLevelMode(levelMode))}
+                                                                            className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors cursor-pointer active:scale-95 shrink-0"
+                                                                        >
+                                                                            {getLevelBadgeText(levelMode)}
+                                                                        </button>
                                                                     )}
                                                                 </div>
 
@@ -1677,6 +1640,7 @@
                         </div>
                     </footer>
 
+                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
@@ -1774,7 +1738,6 @@
                 <div className="flex items-center space-x-1.5 p-1">
                     <div className="w-11 shrink-0"></div>
                     
-                    {/* 名前入力枠 */}
                     <input
                         type="text"
                         value={name}
@@ -1784,7 +1747,6 @@
                         className="flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-xs font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-normal shrink-0"
                     />
 
-                    {/* 男女ボタン */}
                     <div className="flex space-x-0.5 shrink-0 w-12">
                         <button
                             type="button"
@@ -1802,7 +1764,6 @@
                         </button>
                     </div>
 
-                    {/* レベルトグルボタン */}
                     <button
                         type="button"
                         onClick={toggleLevel}
