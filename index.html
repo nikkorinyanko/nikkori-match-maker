@@ -525,14 +525,7 @@
             useEffect(() => {
                 if (members.length > prevMembersLength.current) {
                     setTimeout(() => {
-                        if (tabContentRef.current) {
-                            const isOverMinHeight = tabContentRef.current.offsetHeight > 365;
-                            const rect = tabContentRef.current.getBoundingClientRect();
-                            const isBelowViewport = rect.bottom > window.innerHeight;
-                            if (isOverMinHeight || isBelowViewport) {
-                                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-                            }
-                        }
+                        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
                     }, 100);
                 }
                 prevMembersLength.current = members.length;
@@ -541,14 +534,7 @@
             useEffect(() => {
                 if (pairRules.length > prevPairRulesLength.current) {
                     setTimeout(() => {
-                        if (tabContentRef.current) {
-                            const isOverMinHeight = tabContentRef.current.offsetHeight > 365;
-                            const rect = tabContentRef.current.getBoundingClientRect();
-                            const isBelowViewport = rect.bottom > window.innerHeight;
-                            if (isOverMinHeight || isBelowViewport) {
-                                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-                            }
-                        }
+                        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
                     }, 100);
                 }
                 prevPairRulesLength.current = pairRules.length;
@@ -1032,7 +1018,6 @@
                 );
             };
 
-            // Updated Level Badge colors per user request
             const getLevelBadgeClass = (level) => {
                 switch (level) {
                     case '初級':
@@ -1067,7 +1052,8 @@
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
                         {page === 'top' && (
                             <div className="space-y-6">
-                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md text-center">
+                                {/* Title Banner with square corners (rounded-none) per request */}
+                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none p-6 text-white shadow-md text-center">
                                     <h2 className="text-xl font-black mb-1">にっこりAI対戦表メーカー</h2>
                                     <p className="text-emerald-50 text-xs">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
                                 </div>
@@ -1249,7 +1235,6 @@
                                         </button>
                                     </div>
 
-                                    {/* Responsive min-height aligned to screen layout */}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1337,7 +1322,6 @@
                                             </div>
                                         )}
 
-                                        {}
                                         {activeTab === 'pair' && (
                                             <div className="space-y-3 py-1">
                                                 <div className="text-xs font-bold text-slate-600 text-left pb-1 border-b border-slate-100">
@@ -1462,7 +1446,6 @@
 
                                                                 <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 shadow-sm overflow-hidden py-1.5 px-3 flex items-center justify-between">
                                                                     <span>{PRIORITY_LABELS[key]}</span>
-                                                                    {/* Fixed button width (w-20) to prevent shrinkage */}
                                                                     {isGenderItem && (
                                                                         <button
                                                                             type="button"
@@ -1600,13 +1583,13 @@
                     </main>
 
                     {}
-                    <div className="fixed bottom-[48px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200/60 p-3">
+                    <div className="fixed bottom-[54px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200/60 p-3">
                         <div className="max-w-md w-full mx-auto px-1">
                             {page === 'top' && (
                                 <button
                                     type="button"
                                     onClick={handleCreateNewGroup}
-                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                 >
                                     新規グループを作成する
                                 </button>
@@ -1617,7 +1600,7 @@
                                     <button
                                         type="button"
                                         onClick={handleCreateMatchTable}
-                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-2 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm"
+                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-2 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                     >
                                         対戦表を新規作成する
                                     </button>
@@ -1626,7 +1609,7 @@
                                         <button
                                             type="button"
                                             onClick={handleOpenContinueModal}
-                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
+                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] leading-none"
                                         >
                                             途中から
                                         </button>
@@ -1638,7 +1621,7 @@
                                 <button
                                     type="button"
                                     onClick={handleCopyImage}
-                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                 >
                                     対戦表を画像でコピーする
                                 </button>
@@ -1694,7 +1677,6 @@
                         </div>
                     </footer>
 
-                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
