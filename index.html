@@ -96,7 +96,8 @@
         };
 
         const cycleGenderMode = (current) => {
-            const modes = ['mix', 'balance', 'consider', 'none'];
+            // やや考慮 → 均等 → ミックス → 考慮なし
+            const modes = ['consider', 'balance', 'mix', 'none'];
             const idx = modes.indexOf(current);
             return modes[(idx + 1) % modes.length];
         };
@@ -111,7 +112,8 @@
         };
 
         const cycleLevelMode = (current) => {
-            const modes = ['prioritize', 'consider', 'none'];
+            // やや考慮 → 重視 → 考慮なし
+            const modes = ['consider', 'prioritize', 'none'];
             const idx = modes.indexOf(current);
             return modes[(idx + 1) % modes.length];
         };
@@ -1052,7 +1054,6 @@
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
                         {page === 'top' && (
                             <div className="space-y-6">
-                                {/* Title Banner with square corners (rounded-none) per request */}
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none p-6 text-white shadow-md text-center">
                                     <h2 className="text-xl font-black mb-1">にっこりAI対戦表メーカー</h2>
                                     <p className="text-emerald-50 text-xs">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
@@ -1235,6 +1236,7 @@
                                         </button>
                                     </div>
 
+                                    {}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1629,7 +1631,6 @@
                         </div>
                     </div>
 
-                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
                         <div className="max-w-md w-full mx-auto flex items-center justify-between px-2 -translate-y-2">
                             <div className="w-16 flex justify-start">
