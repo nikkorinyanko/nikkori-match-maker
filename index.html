@@ -195,7 +195,7 @@
             return stats;
         };
 
-        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules) => {
+        const calculatePenalty = (config, criterion, futureHistory, pastHistory, genderMode, levelMode, presentMembers, baseStatsMap, pairRules) => {
             const fullHistory = [...pastHistory, ...futureHistory];
             const courtIds = new Set(config.players.map(p => p.id));
             
@@ -366,10 +366,55 @@
                 
                 return score;
             }
+
+            if (criterion === 'level') {
+                if (levelMode === 'none') return 0;
+
+                const getLevelBaseVal = (lvl) => {
+                    switch(lvl) {
+                        case '初級': return 1;
+                        case '初中級': return 2;
+                        case '中級': return 3;
+                        case '中上級': return 4;
+                        case '上級': return 5;
+                        default: return null;
+                    }
+                };
+
+                const allMatchPlayers = [...config.t1, ...config.t2];
+                const knownLevels = allMatchPlayers
+                    .map(p => getLevelBaseVal(p.level))
+                    .filter(v => v !== null);
+
+                let calcPlayerLevel;
+
+                if (knownLevels.length === 0) {
+                    calcPlayerLevel = (p) => (p.gender === 'M' ? 2 : 1);
+                } else {
+                    const baseAvg = knownLevels.reduce((a, b) => a + b, 0) / knownLevels.length;
+                    calcPlayerLevel = (p) => {
+                        const base = getLevelBaseVal(p.level) ?? baseAvg;
+                        return p.gender === 'M' ? base * 1.25 : base;
+                    };
+                }
+
+                const sumT1 = config.t1.reduce((sum, p) => sum + calcPlayerLevel(p), 0) / config.t1.length;
+                const sumT2 = config.t2.reduce((sum, p) => sum + calcPlayerLevel(p), 0) / config.t2.length;
+                const levelDiff = Math.abs(sumT1 - sumT2);
+
+                if (levelMode === 'prioritize') {
+                    return levelDiff <= 0.5 ? 0 : 10;
+                } else if (levelMode === 'consider') {
+                    return levelDiff <= 1.0 ? 0 : 10;
+                }
+
+                return 0;
+            }
+
             return 0;
         };
 
-        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, baseStatsMap, pairRules) {
+        function evaluateAndCreateNextMatch(presentMembers, futureHistory, pastHistory, priorityOrder, genderMode, levelMode, baseStatsMap, pairRules) {
             if (presentMembers.length < 4) return null;
 
             const N = presentMembers.length;
@@ -403,7 +448,7 @@
             let candidates = [...configurations];
 
             for (const criterion of evaluationSteps) {
-                const scores = candidates.map(config => calculatePenalty(config, criterion, futureHistory, pastHistory, genderMode, presentMembers, baseStatsMap, pairRules));
+                const scores = candidates.map(config => calculatePenalty(config, criterion, futureHistory, pastHistory, genderMode, levelMode, presentMembers, baseStatsMap, pairRules));
                 const minScore = Math.min(...scores);
                 
                 candidates = candidates.filter((_, idx) => scores[idx] === minScore);
@@ -471,6 +516,11 @@
                     setGroups(DEFAULT_GROUPS);
                 }
             }, []);
+
+            // Anchoring: Always scroll to top when page changes
+            useEffect(() => {
+                window.scrollTo(0, 0);
+            }, [page]);
 
             useEffect(() => {
                 if (members.length > prevMembersLength.current) {
@@ -775,7 +825,7 @@
                 activeAttendees.forEach(m => baseStatsMap[m.id] = {matchCount:0, consecutivePlay:0, consecutiveRest:0});
 
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, [], priorityOrder, genderMode, baseStatsMap, pairRules);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, [], priorityOrder, genderMode, levelMode, baseStatsMap, pairRules);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
                 }
@@ -829,7 +879,7 @@
 
                 const generated = [];
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, baseStatsMap, pairRules);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, levelMode, baseStatsMap, pairRules);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
                 }
@@ -876,7 +926,7 @@
                 const baseStatsMap = calculateBaseStats(matchList, cleanMembers);
 
                 for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextTen, matchList, priorityOrder, genderMode, baseStatsMap, pairRules);
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextTen, matchList, priorityOrder, genderMode, levelMode, baseStatsMap, pairRules);
                     if (nextMatch) nextTen.push(nextMatch);
                     else break;
                 }
@@ -982,18 +1032,19 @@
                 );
             };
 
+            // Updated Level Badge colors per user request
             const getLevelBadgeClass = (level) => {
                 switch (level) {
                     case '初級':
-                        return 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+                        return 'bg-lime-100 text-lime-800 border-lime-300 hover:bg-lime-200';
                     case '初中級':
-                        return 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200';
+                        return 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200';
                     case '中級':
-                        return 'bg-sky-200 text-sky-800 border-sky-400 hover:bg-sky-300';
+                        return 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-200';
                     case '中上級':
-                        return 'bg-indigo-300 text-indigo-900 border-indigo-500 hover:bg-indigo-400';
+                        return 'bg-sky-100 text-sky-800 border-sky-300 hover:bg-sky-200';
                     case '上級':
-                        return 'bg-purple-400 text-white border-purple-600 hover:bg-purple-500';
+                        return 'bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200';
                     case '未設定':
                     default:
                         return 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100';
@@ -1005,7 +1056,7 @@
             const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
 
             return (
-                <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[48px]">
+                <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[115px]">
                     
                     <header className="fixed top-0 left-0 right-0 z-40 bg-[#E9D44D] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
                         <span className="text-sm tracking-widest uppercase text-slate-800 font-bold">
@@ -1013,8 +1064,7 @@
                         </span>
                     </header>
 
-                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-4">
-                        {}
+                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
                         {page === 'top' && (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md text-center">
@@ -1097,23 +1147,13 @@
                                             </div>
                                         ))
                                     )}
-
-                                    <div className="pt-2">
-                                        <button
-                                            type="button"
-                                            onClick={handleCreateNewGroup}
-                                            className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                        >
-                                            新規グループを作成する
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         )}
 
                         {}
                         {page === 'group' && (
-                            <div className="space-y-3">
+                            <div className="space-y-3 flex-grow flex flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
@@ -1157,7 +1197,7 @@
                                     )}
                                 </div>
 
-                                <div>
+                                <div className="flex-grow flex flex-col">
                                     <div className="flex items-center justify-between border-b border-slate-300 px-1 pt-1 bg-slate-200/50 rounded-t-2xl">
                                         <div className="flex space-x-1">
                                             <button
@@ -1209,8 +1249,8 @@
                                         </button>
                                     </div>
 
-                                    {}
-                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm min-h-[360px]">
+                                    {/* Responsive min-height aligned to screen layout */}
+                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
                                                 <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-1 text-[11px] font-bold text-slate-500 border-b border-slate-100">
@@ -1297,6 +1337,7 @@
                                             </div>
                                         )}
 
+                                        {}
                                         {activeTab === 'pair' && (
                                             <div className="space-y-3 py-1">
                                                 <div className="text-xs font-bold text-slate-600 text-left pb-1 border-b border-slate-100">
@@ -1391,7 +1432,6 @@
                                             </div>
                                         )}
 
-                                        {}
                                         {activeTab === 'settings' && (
                                             <div className="space-y-3 pt-1">
                                                 <div className="flex justify-between items-center mb-2">
@@ -1422,11 +1462,12 @@
 
                                                                 <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 shadow-sm overflow-hidden py-1.5 px-3 flex items-center justify-between">
                                                                     <span>{PRIORITY_LABELS[key]}</span>
+                                                                    {/* Fixed button width (w-20) to prevent shrinkage */}
                                                                     {isGenderItem && (
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setGenderMode(cycleGenderMode(genderMode))}
-                                                                            className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors cursor-pointer active:scale-95 shrink-0"
+                                                                            className="w-20 text-center text-xs font-bold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors cursor-pointer active:scale-95 shrink-0"
                                                                         >
                                                                             {getGenderBadgeText(genderMode)}
                                                                         </button>
@@ -1435,7 +1476,7 @@
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => setLevelMode(cycleLevelMode(levelMode))}
-                                                                            className="text-xs font-bold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors cursor-pointer active:scale-95 shrink-0"
+                                                                            className="w-20 text-center text-xs font-bold px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300 transition-colors cursor-pointer active:scale-95 shrink-0"
                                                                         >
                                                                             {getLevelBadgeText(levelMode)}
                                                                         </button>
@@ -1467,28 +1508,6 @@
                                                     })}
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="pt-1 space-y-1.5">
-                                    <div className="flex space-x-2">
-                                        <button
-                                            type="button"
-                                            onClick={handleCreateMatchTable}
-                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-2 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm"
-                                        >
-                                            対戦表を新規作成する
-                                        </button>
-                                        
-                                        {matchList.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={handleOpenContinueModal}
-                                                className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
-                                            >
-                                                変更する
-                                            </button>
                                         )}
                                     </div>
                                 </div>
@@ -1555,42 +1574,77 @@
                                     </div>
                                 </div>
 
-                                <div className="space-y-3 mt-4">
-                                    <div className="flex justify-between items-center px-1">
-                                        <button 
-                                            type="button"
-                                            onClick={() => setMatchPage(p => Math.max(0, p - 1))}
-                                            disabled={matchPage === 0}
-                                            className={`text-sm font-bold py-1.5 transition-colors ${
-                                                matchPage > 0 
-                                                ? 'text-slate-600 hover:text-slate-800 cursor-pointer active:scale-95' 
-                                                : 'text-slate-300 cursor-not-allowed'
-                                            }`}
-                                        >
-                                            ← 前の10試合
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={handleNextPageOrGenerate}
-                                            className="text-sm font-bold py-1.5 text-slate-600 hover:text-slate-800 transition-colors active:scale-95 cursor-pointer"
-                                        >
-                                            次の10試合 →
-                                        </button>
-                                    </div>
-                                    
-                                    <div>
-                                        <button
-                                            type="button"
-                                            onClick={handleCopyImage}
-                                            className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                        >
-                                            対戦表を画像でコピーする
-                                        </button>
-                                    </div>
+                                <div className="flex justify-between items-center px-1 pt-2">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setMatchPage(p => Math.max(0, p - 1))}
+                                        disabled={matchPage === 0}
+                                        className={`text-sm font-bold py-1.5 transition-colors ${
+                                            matchPage > 0 
+                                            ? 'text-slate-600 hover:text-slate-800 cursor-pointer active:scale-95' 
+                                            : 'text-slate-300 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        ← 前の10試合
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={handleNextPageOrGenerate}
+                                        className="text-sm font-bold py-1.5 text-slate-600 hover:text-slate-800 transition-colors active:scale-95 cursor-pointer"
+                                    >
+                                        次の10試合 →
+                                    </button>
                                 </div>
                             </div>
                         )}
                     </main>
+
+                    {}
+                    <div className="fixed bottom-[48px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200/60 p-3">
+                        <div className="max-w-md w-full mx-auto px-1">
+                            {page === 'top' && (
+                                <button
+                                    type="button"
+                                    onClick={handleCreateNewGroup}
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                >
+                                    新規グループを作成する
+                                </button>
+                            )}
+
+                            {page === 'group' && (
+                                <div className="flex space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleCreateMatchTable}
+                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-2 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm"
+                                    >
+                                        対戦表を新規作成する
+                                    </button>
+                                    
+                                    {matchList.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleOpenContinueModal}
+                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] text-sm leading-none"
+                                        >
+                                            途中から
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {page === 'match' && (
+                                <button
+                                    type="button"
+                                    onClick={handleCopyImage}
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                >
+                                    対戦表を画像でコピーする
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
                     {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
@@ -1711,7 +1765,7 @@
                     )}
 
                     {toast.show && (
-                        <div className="fixed bottom-14 left-1/2 transform -translate-x-1/2 z-50 bg-slate-800 text-white font-bold text-xs py-2 px-5 rounded-full shadow-lg whitespace-nowrap">
+                        <div className="fixed bottom-28 left-1/2 transform -translate-x-1/2 z-50 bg-slate-800 text-white font-bold text-xs py-2 px-5 rounded-full shadow-lg whitespace-nowrap">
                             {toast.message}
                         </div>
                     )}
