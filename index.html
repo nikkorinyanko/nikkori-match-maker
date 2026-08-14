@@ -96,7 +96,6 @@
         };
 
         const cycleGenderMode = (current) => {
-            // やや考慮 → 均等 → ミックス → 考慮なし
             const modes = ['consider', 'balance', 'mix', 'none'];
             const idx = modes.indexOf(current);
             return modes[(idx + 1) % modes.length];
@@ -112,7 +111,6 @@
         };
 
         const cycleLevelMode = (current) => {
-            // やや考慮 → 重視 → 考慮なし
             const modes = ['consider', 'prioritize', 'none'];
             const idx = modes.indexOf(current);
             return modes[(idx + 1) % modes.length];
@@ -477,6 +475,7 @@
             
             const [groupName, setGroupName] = useState('');
             const [members, setMembers] = useState([]);
+            const [sharedMembers, setSharedMembers] = useState([]); // 共有対戦表表示専用のメンバー情報
             const [pairRules, setPairRules] = useState([]);
             
             const [activeTab, setActiveTab] = useState('members');
@@ -508,16 +507,100 @@
 
             useEffect(() => {
                 const stored = localStorage.getItem('nikkori_tennis_groups_v3');
+                let loadedGroups = DEFAULT_GROUPS;
                 if (stored) {
                     try {
-                        setGroups(JSON.parse(stored));
+                        loadedGroups = JSON.parse(stored);
                     } catch (e) {
-                        setGroups(DEFAULT_GROUPS);
+                        loadedGroups = DEFAULT_GROUPS;
                     }
-                } else {
-                    setGroups(DEFAULT_GROUPS);
                 }
-            }, []);
+
+                const hash = window.location.hash;
+                if (hash.startsWith('#share:')) {
+                    try {
+                        const shareData = hash.substring(7);
+                        const [genderHex, namesStr, matchStr] = shareData.split('_');
+                        
+                        const names = namesStr.split(',').map(n => decodeURIComponent(n));
+                        const genderBits = parseInt(genderHex, 16);
+                        
+                        const importedMembers = names.map((name, i) => {
+                            const isFemale = (genderBits & (1 << i)) !== 0;
+                            return {
+                                id: `member-share-${Date.now()}-${i}`,
+                                name: name,
+                                gender: isFemale ? 'F' : 'M',
+                                level: '未設定',
+                                present: true
+                            };
+                        });
+                        
+                        const importedMatchList = [];
+                        for (let i = 0; i < matchStr.length; i += 4) {
+                            if (i + 3 >= matchStr.length) break;
+                            const idx1 = parseInt(matchStr[i], 16);
+                            const idx2 = parseInt(matchStr[i+1], 16);
+                            const idx3 = parseInt(matchStr[i+2], 16);
+                            const idx4 = parseInt(matchStr[i+3], 16);
+                            
+                            const p1 = importedMembers[idx1];
+                            const p2 = importedMembers[idx2];
+                            const p3 = importedMembers[idx3];
+                            const p4 = importedMembers[idx4];
+                            
+                            if (!p1 || !p2 || !p3 || !p4) continue;
+                            
+                            const players = [p1.id, p2.id, p3.id, p4.id];
+                            const absentees = importedMembers.filter(m => !players.includes(m.id)).map(m => m.id);
+                            
+                            importedMatchList.push({
+                                id: `match-share-${Math.floor(i/4) + 1}`,
+                                players: players,
+                                t1: [p1.id, p2.id],
+                                t2: [p3.id, p4.id],
+                                absentees: absentees
+                            });
+                        }
+                        
+                        const newGroupId = `group-share-${Date.now()}`;
+                        // 仕様変更：グループのmembers/pairRules/settingsは空（デフォルト）、対戦表用情報のみsharedMembersで保持
+                        const newGroup = {
+                            id: newGroupId,
+                            name: "共有された対戦表",
+                            members: [],
+                            sharedMembers: importedMembers,
+                            pairRules: [],
+                            settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE, levelMode: DEFAULT_LEVEL_MODE },
+                            matchList: importedMatchList
+                        };
+                        
+                        loadedGroups = [...loadedGroups, newGroup];
+                        localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(loadedGroups));
+                        
+                        setGroups(loadedGroups);
+                        setActiveGroupId(newGroupId);
+                        setGroupName("共有された対戦表");
+                        setMembers([]);
+                        setSharedMembers(importedMembers);
+                        setPairRules([]);
+                        setMatchList(importedMatchList);
+                        setPriorityOrder(newGroup.settings.priority);
+                        setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
+                        setLevelMode(normalizeLevelMode(newGroup.settings.levelMode));
+                        setActiveTab('members');
+                        setPage('match');
+                        setMatchPage(0);
+                        
+                        window.history.replaceState("", document.title, window.location.pathname + window.location.search);
+                        return;
+                    } catch(e) {
+                        console.error("URL解析エラー", e);
+                    }
+                }
+
+                setGroups(loadedGroups);
+            }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
             // Anchoring: Always scroll to top when page changes
             useEffect(() => {
@@ -563,6 +646,7 @@
                     id: newId,
                     name: "",
                     members: [],
+                    sharedMembers: [],
                     pairRules: [],
                     settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE, levelMode: DEFAULT_LEVEL_MODE },
                     matchList: []
@@ -574,6 +658,7 @@
                 setActiveGroupId(newId);
                 setGroupName("");
                 setMembers([]);
+                setSharedMembers([]);
                 setPairRules([]);
                 setMatchList([]);
                 setPriorityOrder(newGroup.settings.priority);
@@ -590,6 +675,7 @@
                 setActiveGroupId(gId);
                 setGroupName(target.name);
                 setMembers(target.members || []);
+                setSharedMembers(target.sharedMembers || []);
                 setPairRules(target.pairRules || []);
                 setMatchList(target.matchList || []);
                 setPriorityOrder(ensurePriorityList(target.settings?.priority));
@@ -626,6 +712,7 @@
                             ...g, 
                             name: resolvedName, 
                             members: cleanMembers, 
+                            sharedMembers: sharedMembers,
                             pairRules: cleanPairRules,
                             settings: { priority: priorityOrder, genderMode: genderMode, levelMode: levelMode },
                             matchList: matchList 
@@ -901,14 +988,25 @@
                 const targetPageIndex = matchPage + 1;
                 const requiredMatchesCount = (targetPageIndex + 1) * 10;
 
+                // 共有された試合など、すでにリストに必要な試合数が存在する場合はそのままページ遷移
                 if (matchList.length >= requiredMatchesCount) {
                     setMatchPage(targetPageIndex);
                     return;
                 }
 
+                // まだ未表示の既存試合が残っている場合（例: 15試合あって11〜15試合目を表示する場合）
+                if (matchList.length > targetPageIndex * 10) {
+                    setMatchPage(targetPageIndex);
+                    return;
+                }
+
+                // 新しく自動生成しようとするが、参加メンバーが不足（4人未満）している場合
                 const cleanMembers = members.filter(m => m.name.trim() !== "");
                 const activeAttendees = cleanMembers.filter(m => m.present);
-                if (activeAttendees.length < 4) return;
+                if (activeAttendees.length < 4) {
+                    triggerToast("⚠️ 試合を行うには参加者が最低4人必要です");
+                    return;
+                }
 
                 const nextTen = [];
                 const baseStatsMap = calculateBaseStats(matchList, cleanMembers);
@@ -942,6 +1040,50 @@
                 localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
 
                 setMatchPage(targetPageIndex);
+            };
+
+            const handleShareUrl = () => {
+                const presentMembers = members.length > 0 ? members.filter(m => m.present) : sharedMembers;
+                if (presentMembers.length === 0 || matchList.length === 0) {
+                    triggerToast("⚠️ 共有する対戦表がありません");
+                    return;
+                }
+
+                const names = presentMembers.map(m => encodeURIComponent(m.name)).join(',');
+                
+                let genderBits = 0;
+                presentMembers.forEach((m, i) => {
+                    if (m.gender === 'F') genderBits |= (1 << i);
+                });
+                const genderHex = genderBits.toString(16);
+                
+                const matchStr = matchList.map(m => {
+                    const getIdx = (id) => {
+                        const idx = presentMembers.findIndex(p => p.id === id);
+                        return idx >= 0 ? idx.toString(16) : '0'; 
+                    };
+                    return getIdx(m.t1[0]) + getIdx(m.t1[1]) + getIdx(m.t2[0]) + getIdx(m.t2[1]);
+                }).join('');
+                
+                const shareData = `${genderHex}_${names}_${matchStr}`;
+                const shareUrl = `${window.location.origin}${window.location.pathname}#share:${shareData}`;
+                
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = shareUrl;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-999999px";
+                    textArea.style.top = "-999999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    document.execCommand('copy');
+                    textArea.remove();
+                    triggerToast("✅ URLをコピーしました");
+                } catch (err) {
+                    console.error("Clipboard error:", err);
+                    triggerToast("⚠️ URLのコピーに失敗しました");
+                }
             };
 
             const handleCopyImage = async () => {
@@ -1002,8 +1144,9 @@
                 setPriorityOrder(newOrder);
             };
 
+            // membersに無い場合、sharedMembersから検索する
             const getMemberName = (id) => {
-                const m = members.find(p => p.id === id);
+                const m = members.find(p => p.id === id) || sharedMembers.find(p => p.id === id);
                 if (!m) return { name: "??", isMale: true };
                 return { name: m.name, isMale: m.gender === "M" };
             };
@@ -1138,7 +1281,6 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'group' && (
                             <div className="space-y-3 flex-grow flex flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1620,13 +1762,22 @@
                             )}
 
                             {page === 'match' && (
-                                <button
-                                    type="button"
-                                    onClick={handleCopyImage}
-                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                >
-                                    対戦表を画像でコピーする
-                                </button>
+                                <div className="flex space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleShareUrl}
+                                        className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] sm:text-xs py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                    >
+                                        対戦表をURLで共有する
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyImage}
+                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] sm:text-xs py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                    >
+                                        対戦表を画像でコピーする
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1678,6 +1829,7 @@
                         </div>
                     </footer>
 
+                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
