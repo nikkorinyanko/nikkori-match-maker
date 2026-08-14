@@ -1079,7 +1079,6 @@
                 const pastHistory = matchList.slice(0, startNum - 1);
                 const baseStatsMap = calculateBaseStats(pastHistory, cleanMembers);
 
-                // 10試合単位の枠組み（例：5試合目からなら10試合目まで）に収まるよう必要な試合数を計算
                 const targetTotal = Math.ceil(startNum / 10) * 10;
                 const matchesToGenerate = targetTotal - pastHistory.length;
 
@@ -1131,7 +1130,6 @@
                     return;
                 }
 
-                // 次の10試合分を満たすように必要な試合数を計算
                 const countToGenerate = requiredMatchesCount - matchList.length;
                 const nextMatches = [];
                 const baseStatsMap = calculateBaseStats(matchList, cleanMembers);
@@ -1389,6 +1387,7 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'group' && (
                             <div className="space-y-3 flex-grow flex flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1936,6 +1935,7 @@
                         </div>
                     </footer>
 
+                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
