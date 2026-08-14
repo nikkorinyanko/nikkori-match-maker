@@ -66,6 +66,172 @@
         const DEFAULT_LEVEL_MODE = 'consider';
         const LEVELS = ['未設定', '初級', '初中級', '中級', '中上級', '上級'];
 
+        async function compressData(bytes) {
+            if (typeof CompressionStream !== 'undefined') {
+                try {
+                    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+                    const response = new Response(stream);
+                    const buffer = await response.arrayBuffer();
+                    return new Uint8Array(buffer);
+                } catch(e) {
+                    return bytes;
+                }
+            }
+            return bytes;
+        }
+
+        async function decompressData(bytes) {
+            if (typeof DecompressionStream !== 'undefined') {
+                try {
+                    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+                    const response = new Response(stream);
+                    const buffer = await response.arrayBuffer();
+                    return new Uint8Array(buffer);
+                } catch(e) {
+                    return bytes;
+                }
+            }
+            return bytes;
+        }
+
+        function uint8ToBase64Url(bytes) {
+            let binary = '';
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+            return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function base64UrlToUint8(base64url) {
+            let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        async function encodeShareData(presentMembers, matchList) {
+            const encoder = new TextEncoder();
+            const idMap = new Map();
+            presentMembers.forEach((m, i) => idMap.set(m.id, i));
+
+            const numMembers = presentMembers.length;
+            const genderBytesCount = Math.ceil(numMembers / 8);
+
+            const nameBytesList = presentMembers.map(m => encoder.encode(m.name || ''));
+
+            let totalBytes = 1 + genderBytesCount;
+            nameBytesList.forEach(nb => {
+                totalBytes += 1 + nb.length;
+            });
+            totalBytes += matchList.length * 2;
+
+            const buffer = new Uint8Array(totalBytes);
+            let offset = 0;
+
+            buffer[offset++] = numMembers;
+
+            const genderOffset = offset;
+            for (let i = 0; i < numMembers; i++) {
+                const byteIdx = genderOffset + Math.floor(i / 8);
+                const bitIdx = i % 8;
+                if (presentMembers[i].gender === 'F') {
+                    buffer[byteIdx] |= (1 << bitIdx);
+                }
+            }
+            offset += genderBytesCount;
+
+            nameBytesList.forEach(nb => {
+                buffer[offset++] = nb.length;
+                buffer.set(nb, offset);
+                offset += nb.length;
+            });
+
+            matchList.forEach(m => {
+                const p1 = idMap.has(m.t1[0]) ? idMap.get(m.t1[0]) : 0;
+                const p2 = idMap.has(m.t1[1]) ? idMap.get(m.t1[1]) : 0;
+                const p3 = idMap.has(m.t2[0]) ? idMap.get(m.t2[0]) : 0;
+                const p4 = idMap.has(m.t2[1]) ? idMap.get(m.t2[1]) : 0;
+
+                const val = ((p1 & 0xF) << 12) | ((p2 & 0xF) << 8) | ((p3 & 0xF) << 4) | (p4 & 0xF);
+                buffer[offset++] = (val >> 8) & 0xFF;
+                buffer[offset++] = val & 0xFF;
+            });
+
+            const compressed = await compressData(buffer);
+            return uint8ToBase64Url(compressed);
+        }
+
+        async function decodeShareData(shareStr) {
+            const compressed = base64UrlToUint8(shareStr);
+            const buffer = await decompressData(compressed);
+            const decoder = new TextDecoder();
+
+            let offset = 0;
+            const numMembers = buffer[offset++];
+            if (numMembers < 1 || numMembers > 20) throw new Error("Invalid member count");
+
+            const genderBytesCount = Math.ceil(numMembers / 8);
+            const genderBytes = buffer.subarray(offset, offset + genderBytesCount);
+            offset += genderBytesCount;
+
+            const importedMembers = [];
+            for (let i = 0; i < numMembers; i++) {
+                const isFemale = (genderBytes[Math.floor(i / 8)] & (1 << (i % 8))) !== 0;
+                const nameLen = buffer[offset++];
+                const nameBytes = buffer.subarray(offset, offset + nameLen);
+                offset += nameLen;
+                const name = decoder.decode(nameBytes);
+
+                importedMembers.push({
+                    id: `member-share-${Date.now()}-${i}`,
+                    name: name,
+                    gender: isFemale ? 'F' : 'M',
+                    level: '未設定',
+                    present: true
+                });
+            }
+
+            const importedMatchList = [];
+            let matchIdx = 1;
+            while (offset + 1 < buffer.length) {
+                const val = (buffer[offset] << 8) | buffer[offset + 1];
+                offset += 2;
+
+                const idx1 = (val >> 12) & 0xF;
+                const idx2 = (val >> 8) & 0xF;
+                const idx3 = (val >> 4) & 0xF;
+                const idx4 = val & 0xF;
+
+                const p1 = importedMembers[idx1];
+                const p2 = importedMembers[idx2];
+                const p3 = importedMembers[idx3];
+                const p4 = importedMembers[idx4];
+
+                if (!p1 || !p2 || !p3 || !p4) continue;
+
+                const players = [p1.id, p2.id, p3.id, p4.id];
+                const absentees = importedMembers.filter(m => !players.includes(m.id)).map(m => m.id);
+
+                importedMatchList.push({
+                    id: `match-share-${matchIdx++}`,
+                    players: players,
+                    t1: [p1.id, p2.id],
+                    t2: [p3.id, p4.id],
+                    absentees: absentees
+                });
+            }
+
+            return { importedMembers, importedMatchList };
+        }
+
         const ensurePriorityList = (pList) => {
             if (!Array.isArray(pList)) return DEFAULT_PRIORITY;
             let list = pList.filter(p => Object.keys(PRIORITY_LABELS).includes(p));
@@ -475,7 +641,7 @@
             
             const [groupName, setGroupName] = useState('');
             const [members, setMembers] = useState([]);
-            const [sharedMembers, setSharedMembers] = useState([]); // 共有対戦表表示専用のメンバー情報
+            const [sharedMembers, setSharedMembers] = useState([]);
             const [pairRules, setPairRules] = useState([]);
             
             const [activeTab, setActiveTab] = useState('members');
@@ -518,91 +684,52 @@
 
                 const hash = window.location.hash;
                 if (hash.startsWith('#share:')) {
-                    try {
-                        const shareData = hash.substring(7);
-                        const [genderHex, namesStr, matchStr] = shareData.split('_');
-                        
-                        const names = namesStr.split(',').map(n => decodeURIComponent(n));
-                        const genderBits = parseInt(genderHex, 16);
-                        
-                        const importedMembers = names.map((name, i) => {
-                            const isFemale = (genderBits & (1 << i)) !== 0;
-                            return {
-                                id: `member-share-${Date.now()}-${i}`,
-                                name: name,
-                                gender: isFemale ? 'F' : 'M',
-                                level: '未設定',
-                                present: true
+                    (async () => {
+                        try {
+                            const shareData = hash.substring(7);
+                            const decoded = await decodeShareData(shareData);
+                            const importedMembers = decoded.importedMembers;
+                            const importedMatchList = decoded.importedMatchList;
+
+                            const newGroupId = `group-share-${Date.now()}`;
+                            const newGroup = {
+                                id: newGroupId,
+                                name: "共有された対戦表",
+                                members: [],
+                                sharedMembers: importedMembers,
+                                pairRules: [],
+                                settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE, levelMode: DEFAULT_LEVEL_MODE },
+                                matchList: importedMatchList
                             };
-                        });
-                        
-                        const importedMatchList = [];
-                        for (let i = 0; i < matchStr.length; i += 4) {
-                            if (i + 3 >= matchStr.length) break;
-                            const idx1 = parseInt(matchStr[i], 16);
-                            const idx2 = parseInt(matchStr[i+1], 16);
-                            const idx3 = parseInt(matchStr[i+2], 16);
-                            const idx4 = parseInt(matchStr[i+3], 16);
                             
-                            const p1 = importedMembers[idx1];
-                            const p2 = importedMembers[idx2];
-                            const p3 = importedMembers[idx3];
-                            const p4 = importedMembers[idx4];
+                            loadedGroups = [...loadedGroups, newGroup];
+                            localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(loadedGroups));
                             
-                            if (!p1 || !p2 || !p3 || !p4) continue;
+                            setGroups(loadedGroups);
+                            setActiveGroupId(newGroupId);
+                            setGroupName("共有された対戦表");
+                            setMembers([]);
+                            setSharedMembers(importedMembers);
+                            setPairRules([]);
+                            setMatchList(importedMatchList);
+                            setPriorityOrder(newGroup.settings.priority);
+                            setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
+                            setLevelMode(normalizeLevelMode(newGroup.settings.levelMode));
+                            setActiveTab('members');
+                            setPage('match');
+                            setMatchPage(0);
                             
-                            const players = [p1.id, p2.id, p3.id, p4.id];
-                            const absentees = importedMembers.filter(m => !players.includes(m.id)).map(m => m.id);
-                            
-                            importedMatchList.push({
-                                id: `match-share-${Math.floor(i/4) + 1}`,
-                                players: players,
-                                t1: [p1.id, p2.id],
-                                t2: [p3.id, p4.id],
-                                absentees: absentees
-                            });
+                            window.history.replaceState("", document.title, window.location.pathname + window.location.search);
+                        } catch(e) {
+                            console.error("URL解析エラー", e);
                         }
-                        
-                        const newGroupId = `group-share-${Date.now()}`;
-                        // 仕様変更：グループのmembers/pairRules/settingsは空（デフォルト）、対戦表用情報のみsharedMembersで保持
-                        const newGroup = {
-                            id: newGroupId,
-                            name: "共有された対戦表",
-                            members: [],
-                            sharedMembers: importedMembers,
-                            pairRules: [],
-                            settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE, levelMode: DEFAULT_LEVEL_MODE },
-                            matchList: importedMatchList
-                        };
-                        
-                        loadedGroups = [...loadedGroups, newGroup];
-                        localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(loadedGroups));
-                        
-                        setGroups(loadedGroups);
-                        setActiveGroupId(newGroupId);
-                        setGroupName("共有された対戦表");
-                        setMembers([]);
-                        setSharedMembers(importedMembers);
-                        setPairRules([]);
-                        setMatchList(importedMatchList);
-                        setPriorityOrder(newGroup.settings.priority);
-                        setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
-                        setLevelMode(normalizeLevelMode(newGroup.settings.levelMode));
-                        setActiveTab('members');
-                        setPage('match');
-                        setMatchPage(0);
-                        
-                        window.history.replaceState("", document.title, window.location.pathname + window.location.search);
-                        return;
-                    } catch(e) {
-                        console.error("URL解析エラー", e);
-                    }
+                    })();
+                    return;
                 }
 
                 setGroups(loadedGroups);
-            }, []); // eslint-disable-line react-hooks/exhaustive-deps
+            }, []);
 
-            // Anchoring: Always scroll to top when page changes
             useEffect(() => {
                 window.scrollTo(0, 0);
             }, [page]);
@@ -952,8 +1079,12 @@
                 const pastHistory = matchList.slice(0, startNum - 1);
                 const baseStatsMap = calculateBaseStats(pastHistory, cleanMembers);
 
+                // 10試合単位の枠組み（例：5試合目からなら10試合目まで）に収まるよう必要な試合数を計算
+                const targetTotal = Math.ceil(startNum / 10) * 10;
+                const matchesToGenerate = targetTotal - pastHistory.length;
+
                 const generated = [];
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < matchesToGenerate; i++) {
                     const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, pastHistory, priorityOrder, genderMode, levelMode, baseStatsMap, pairRules);
                     if (nextMatch) generated.push(nextMatch);
                     else break;
@@ -988,19 +1119,11 @@
                 const targetPageIndex = matchPage + 1;
                 const requiredMatchesCount = (targetPageIndex + 1) * 10;
 
-                // 共有された試合など、すでにリストに必要な試合数が存在する場合はそのままページ遷移
                 if (matchList.length >= requiredMatchesCount) {
                     setMatchPage(targetPageIndex);
                     return;
                 }
 
-                // まだ未表示の既存試合が残っている場合（例: 15試合あって11〜15試合目を表示する場合）
-                if (matchList.length > targetPageIndex * 10) {
-                    setMatchPage(targetPageIndex);
-                    return;
-                }
-
-                // 新しく自動生成しようとするが、参加メンバーが不足（4人未満）している場合
                 const cleanMembers = members.filter(m => m.name.trim() !== "");
                 const activeAttendees = cleanMembers.filter(m => m.present);
                 if (activeAttendees.length < 4) {
@@ -1008,21 +1131,23 @@
                     return;
                 }
 
-                const nextTen = [];
+                // 次の10試合分を満たすように必要な試合数を計算
+                const countToGenerate = requiredMatchesCount - matchList.length;
+                const nextMatches = [];
                 const baseStatsMap = calculateBaseStats(matchList, cleanMembers);
 
-                for (let i = 0; i < 10; i++) {
-                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextTen, matchList, priorityOrder, genderMode, levelMode, baseStatsMap, pairRules);
-                    if (nextMatch) nextTen.push(nextMatch);
+                for (let i = 0; i < countToGenerate; i++) {
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, nextMatches, matchList, priorityOrder, genderMode, levelMode, baseStatsMap, pairRules);
+                    if (nextMatch) nextMatches.push(nextMatch);
                     else break;
                 }
 
-                if (nextTen.length === 0) {
+                if (nextMatches.length === 0) {
                     triggerToast("⚠️ これ以上組み合わせを作れません");
                     return;
                 }
                 
-                const newMatchList = [...matchList, ...nextTen];
+                const newMatchList = [...matchList, ...nextMatches];
                 const finalizedList = newMatchList.map((m, idx) => ({
                     ...m,
                     id: `match-${idx + 1}`
@@ -1042,33 +1167,17 @@
                 setMatchPage(targetPageIndex);
             };
 
-            const handleShareUrl = () => {
+            const handleShareUrl = async () => {
                 const presentMembers = members.length > 0 ? members.filter(m => m.present) : sharedMembers;
                 if (presentMembers.length === 0 || matchList.length === 0) {
                     triggerToast("⚠️ 共有する対戦表がありません");
                     return;
                 }
 
-                const names = presentMembers.map(m => encodeURIComponent(m.name)).join(',');
-                
-                let genderBits = 0;
-                presentMembers.forEach((m, i) => {
-                    if (m.gender === 'F') genderBits |= (1 << i);
-                });
-                const genderHex = genderBits.toString(16);
-                
-                const matchStr = matchList.map(m => {
-                    const getIdx = (id) => {
-                        const idx = presentMembers.findIndex(p => p.id === id);
-                        return idx >= 0 ? idx.toString(16) : '0'; 
-                    };
-                    return getIdx(m.t1[0]) + getIdx(m.t1[1]) + getIdx(m.t2[0]) + getIdx(m.t2[1]);
-                }).join('');
-                
-                const shareData = `${genderHex}_${names}_${matchStr}`;
-                const shareUrl = `${window.location.origin}${window.location.pathname}#share:${shareData}`;
-                
                 try {
+                    const shareData = await encodeShareData(presentMembers, matchList);
+                    const shareUrl = `${window.location.origin}${window.location.pathname}#share:${shareData}`;
+                    
                     const textArea = document.createElement("textarea");
                     textArea.value = shareUrl;
                     textArea.style.position = "fixed";
@@ -1081,8 +1190,8 @@
                     textArea.remove();
                     triggerToast("✅ URLをコピーしました");
                 } catch (err) {
-                    console.error("Clipboard error:", err);
-                    triggerToast("⚠️ URLのコピーに失敗しました");
+                    console.error("Share error:", err);
+                    triggerToast("⚠️ URLの生成に失敗しました");
                 }
             };
 
@@ -1144,7 +1253,6 @@
                 setPriorityOrder(newOrder);
             };
 
-            // membersに無い場合、sharedMembersから検索する
             const getMemberName = (id) => {
                 const m = members.find(p => p.id === id) || sharedMembers.find(p => p.id === id);
                 if (!m) return { name: "??", isMale: true };
@@ -1378,7 +1486,6 @@
                                         </button>
                                     </div>
 
-                                    {}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1829,7 +1936,6 @@
                         </div>
                     </footer>
 
-                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
