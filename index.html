@@ -1176,17 +1176,44 @@
                     const shareData = await encodeShareData(presentMembers, matchList);
                     const shareUrl = `${window.location.origin}${window.location.pathname}#share:${shareData}`;
                     
-                    const textArea = document.createElement("textarea");
-                    textArea.value = shareUrl;
-                    textArea.style.position = "fixed";
-                    textArea.style.left = "-999999px";
-                    textArea.style.top = "-999999px";
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
-                    document.execCommand('copy');
-                    textArea.remove();
-                    triggerToast("✅ URLをコピーしました");
+                    let copied = false;
+                    
+                    // 1. Try modern Async Clipboard API first
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        try {
+                            await navigator.clipboard.writeText(shareUrl);
+                            copied = true;
+                        } catch (err) {
+                            console.warn("writeText failed, using fallback:", err);
+                        }
+                    }
+                    
+                    // 2. Fallback to textarea + execCommand with complete iOS selection fix
+                    if (!copied) {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = shareUrl;
+                        textArea.style.fontSize = "12pt";
+                        textArea.style.border = "0";
+                        textArea.style.padding = "0";
+                        textArea.style.margin = "0";
+                        textArea.style.position = "fixed";
+                        textArea.style.left = "-9999px";
+                        textArea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + "px";
+                        document.body.appendChild(textArea);
+                        
+                        textArea.focus();
+                        textArea.select();
+                        textArea.setSelectionRange(0, 999999); // Critical for iOS Safari
+                        
+                        copied = document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                    }
+
+                    if (copied) {
+                        triggerToast("✅ URLをコピーしました");
+                    } else {
+                        triggerToast("⚠️ URLのコピーに失敗しました");
+                    }
                 } catch (err) {
                     console.error("Share error:", err);
                     triggerToast("⚠️ URLの生成に失敗しました");
@@ -1225,12 +1252,24 @@
                     });
 
                     canvas.toBlob(async (blob) => {
-                        try {
-                            const item = new ClipboardItem({ "image/png": blob });
-                            await navigator.clipboard.write([item]);
-                            triggerToast("✅ コピー完了");
-                        } catch (err) {
-                            console.error("Clipboard API error:", err);
+                        if (!blob) {
+                            triggerToast("⚠️ 画像の生成に失敗しました");
+                            return;
+                        }
+
+                        let imageCopied = false;
+                        if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined') {
+                            try {
+                                const item = new ClipboardItem({ "image/png": blob });
+                                await navigator.clipboard.write([item]);
+                                imageCopied = true;
+                                triggerToast("✅ コピー完了");
+                            } catch (err) {
+                                console.error("Clipboard API write error:", err);
+                            }
+                        }
+
+                        if (!imageCopied) {
                             const imgData = URL.createObjectURL(blob);
                             setCapturedImage(imgData);
                             setShowImageModal(true);
@@ -1387,7 +1426,6 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'group' && (
                             <div className="space-y-3 flex-grow flex flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1749,7 +1787,6 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
@@ -1832,7 +1869,6 @@
                         )}
                     </main>
 
-                    {}
                     <div className="fixed bottom-[54px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200/60 p-3">
                         <div className="max-w-md w-full mx-auto px-1">
                             {page === 'top' && (
@@ -1935,7 +1971,6 @@
                         </div>
                     </footer>
 
-                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
