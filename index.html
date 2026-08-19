@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>にっこりAI対戦表メーカー</title>
+    <title>にっこり対戦表メーカー</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & ReactDOM CDN -->
@@ -33,7 +33,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const HomeIcon = ({ className = "w-6 h-6" }) => (
+        const HomeIcon = ({ className = "w-7.5 h-7.5" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
@@ -430,7 +430,7 @@
                 });
                 return sum;
             }
-            
+
             if (criterion === 'pair') {
                 let sum = 0;
                 const t1 = config.t1.map(p => p.id);
@@ -1339,8 +1339,8 @@
                 <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[140px]">
                     
                     <header className="fixed top-0 left-0 right-0 z-40 bg-[#E9D44D] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
-                        <span className="text-sm tracking-widest uppercase text-slate-800 font-bold">
-                            [広告募集中]
+                        <span className="text-sm tracking-widest uppercase text-slate-800">
+                            [広告主募集中]
                         </span>
                     </header>
 
@@ -1348,7 +1348,7 @@
                         {page === 'top' && (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none p-6 text-white shadow-md text-center">
-                                    <h2 className="text-xl font-black mb-1">にっこりAI対戦表メーカー</h2>
+                                    <h2 className="text-xl font-black mb-1">にっこり対戦表メーカー</h2>
                                     <p className="text-emerald-50 text-xs">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
                                 </div>
 
@@ -1522,9 +1522,9 @@
                                         <button
                                             type="button"
                                             onClick={handleSaveGroup}
-                                            className="mb-1 mr-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition-all shadow-sm active:scale-95 flex items-center space-x-1 shrink-0"
+                                            className="mb-1 mr-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm px-4 py-1 rounded-lg transition-all shadow-sm active:scale-95 flex items-center space-x-1 shrink-0"
                                         >
-                                            <span>💾 保存</span>
+                                            <span>保存</span>
                                         </button>
                                     </div>
 
@@ -1536,7 +1536,7 @@
                                                         参加{presentCount}名
                                                     </div>
                                                     <div className="flex-1 text-center text-slate-400 font-normal min-w-0">
-                                                        名前(4文字以内)
+                                                        メンバー名(4文字以内)
                                                     </div>
                                                     <div className="w-12 text-center text-slate-400 font-normal shrink-0">
                                                         性別
@@ -1874,7 +1874,6 @@
                         )}
                     </main>
 
-                    {/* アクションボタンエリア（HOMEボタンが大きくなった分、フッター上に位置を調整） */}
                     <div className="fixed bottom-[64px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm p-3">
                         <div className="max-w-md w-full mx-auto px-1">
                             {page === 'top' && (
@@ -1901,9 +1900,9 @@
                                         <button
                                             type="button"
                                             onClick={handleOpenContinueModal}
-                                            className="w-20 bg-slate-500 hover:bg-slate-600 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] leading-none"
+                                            className="w-24 bg-slate-500 hover:bg-slate-600 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] leading-none shrink-0"
                                         >
-                                            途中から
+                                            続きから
                                         </button>
                                     )}
                                 </div>
@@ -1914,57 +1913,52 @@
                                     <button
                                         type="button"
                                         onClick={handleShareUrl}
-                                        className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] sm:text-xs py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                        className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                     >
-                                        対戦表をURLで共有する
+                                        URLで共有する
                                     </button>
                                     <button
                                         type="button"
                                         onClick={handleCopyImage}
-                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] sm:text-xs py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                     >
-                                        対戦表を画像でコピーする
+                                        画像をコピーする
                                     </button>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* 新しいフッターデザイン（全体と同じ背景色・共通HOMEアイコン・刷新されたボタン群） */}
-                    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-center justify-between px-6">
-                        <div className="max-w-md w-full mx-auto flex items-center justify-between">
-                            {/* 左側：設定リンク（対戦表画面でのみ表示） */}
-                            <div className="w-24 flex justify-start">
+                    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-start pt-1 justify-between px-6">
+                        <div className="max-w-md w-full mx-auto flex items-start justify-between">
+                            {/* 左側：設定ボタン */}
+                            <div className="w-28 flex justify-start">
                                 {page === 'match' && (
                                     <button
                                         type="button"
                                         onClick={handleBackToGroup}
-                                        className="bg-white border border-slate-200 text-slate-700 hover:text-emerald-600 font-bold text-xs py-1.5 px-3 rounded-full shadow-sm flex items-center space-x-1 transition-all active:scale-95"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-5 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
-                                        <span className="text-emerald-600 font-extrabold text-xs">❮</span>
+                                        <span className="font-black text-sm">❮</span>
                                         <span>設定</span>
                                     </button>
                                 )}
                             </div>
 
-                            {/* 中央：全画面共通 HOMEボタン（アイコン＋テキスト） */}
+                            {/* 中央：全画面共通 HOMEボタン */}
                             <div className="flex justify-center">
                                 <button
                                     type="button"
                                     onClick={handleGoHome}
-                                    className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all active:scale-95 ${
-                                        page === 'top' 
-                                            ? 'text-emerald-600' 
-                                            : 'text-slate-500 hover:text-emerald-600'
-                                    }`}
+                                    className="flex flex-col items-center justify-center py-0 px-3 text-emerald-600 hover:text-emerald-700 transition-all active:scale-90"
                                 >
-                                    <HomeIcon className="w-6 h-6" />
+                                    <HomeIcon className="w-[30px] h-[30px] -mt-[3px] transition-transform" />
                                     <span className="text-[10px] font-extrabold leading-tight mt-0.5 tracking-wider">HOME</span>
                                 </button>
                             </div>
 
-                            {/* 右側：対戦表リンク（グループ画面でのみ表示） */}
-                            <div className="w-24 flex justify-end">
+                            {/* 右側：対戦表ボタン */}
+                            <div className="w-28 flex justify-end">
                                 {page === 'group' && (
                                     <button
                                         type="button"
@@ -1975,10 +1969,10 @@
                                                 handleCreateMatchTable();
                                             }
                                         }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-1.5 px-3 rounded-full shadow-sm flex items-center space-x-1 transition-all active:scale-95"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
                                         <span>対戦表</span>
-                                        <span className="font-extrabold text-xs">❯</span>
+                                        <span className="font-black text-sm">❯</span>
                                     </button>
                                 )}
                             </div>
