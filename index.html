@@ -1341,7 +1341,7 @@
                     <header className="fixed top-0 left-0 right-0 z-40 bg-[#E9D44D] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
                         <span className="text-sm tracking-widest uppercase text-slate-800">
                             [広告主募集中]
-                        </span>mail
+                        </span>
                     </header>
 
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
@@ -1353,80 +1353,86 @@
                                 </div>
 
                                 <div className="space-y-2.5">
-                                    {groups.length === 0 ? (
-                                        <div className="text-center py-8 bg-white border border-dashed border-slate-200 rounded-xl text-slate-400 text-sm">
-                                            グループがありません。<br/>下のボタンから作成してください。
-                                        </div>
-                                    ) : (
-                                        groups.map((g, index) => (
-                                            <div key={g.id} className="flex items-center space-x-1.5">
-                                                <div className="flex flex-col space-y-4 shrink-0">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleMoveGroup(index, -1)}
-                                                        disabled={index === 0}
-                                                        className="w-7 h-4 bg-white border border-slate-200 hover:border-emerald-400 rounded text-[9px] font-bold text-slate-500 hover:text-emerald-600 flex items-center justify-center disabled:opacity-30 disabled:hover:border-slate-200 transition-colors"
-                                                        title="上に移動"
-                                                    >
-                                                        ▲
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleMoveGroup(index, 1)}
-                                                        disabled={index === groups.length - 1}
-                                                        className="w-7 h-4 bg-white border border-slate-200 hover:border-emerald-400 rounded text-[9px] font-bold text-slate-500 hover:text-emerald-600 flex items-center justify-center disabled:opacity-30 disabled:hover:border-slate-200 transition-colors"
-                                                        title="下に移動"
-                                                    >
-                                                        ▼
-                                                    </button>
-                                                </div>
-
+                                    {groups.map((g, index) => (
+                                        <div key={g.id} className="flex items-center space-x-1.5">
+                                            <div className="flex flex-col space-y-4 shrink-0">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleSelectGroup(g.id)}
-                                                    className="flex-grow bg-white border border-slate-200 hover:border-emerald-400 rounded-xl py-2 px-3 shadow-sm text-left flex items-center justify-between group transition-all min-w-0"
+                                                    onClick={() => handleMoveGroup(index, -1)}
+                                                    disabled={index === 0}
+                                                    className="w-7 h-4 bg-white border border-slate-200 hover:border-emerald-400 rounded text-[9px] font-bold text-slate-500 hover:text-emerald-600 flex items-center justify-center disabled:opacity-30 disabled:hover:border-slate-200 transition-colors"
+                                                    title="上に移動"
                                                 >
-                                                    <div className="overflow-visible">
-                                                        <div className="font-bold text-slate-800 group-hover:text-emerald-600 overflow-visible">
-                                                            {g.name || "（名称未設定のグループ）"}
-                                                        </div>
-                                                        <div className="text-sm text-slate-400 mt-0.5">
-                                                            メンバー: {g.members?.length || 0}名
-                                                        </div>
-                                                    </div>
-                                                    <span className="text-slate-400 font-bold ml-1.5 text-sm group-hover:text-emerald-600 shrink-0">❯</span>
+                                                    ▲
                                                 </button>
-
-                                                {deleteConfirmId === g.id ? (
-                                                    <div className="flex items-center space-x-1 shrink-0 bg-rose-50 p-1 rounded-xl border border-rose-100">
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => handleDeleteGroupById(g.id)} 
-                                                            className="text-rose-600 hover:text-rose-700 text-xs font-bold px-1 py-0.5"
-                                                        >
-                                                            削除
-                                                        </button>
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => setDeleteConfirmId(null)} 
-                                                            className="text-slate-500 hover:text-slate-700 text-xs font-bold px-1 py-0.5"
-                                                        >
-                                                            取消
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setDeleteConfirmId(g.id)}
-                                                        className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-500 rounded-xl hover:bg-rose-50 transition-colors shrink-0"
-                                                        title="グループを削除"
-                                                    >
-                                                        <TrashIcon />
-                                                    </button>
-                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleMoveGroup(index, 1)}
+                                                    disabled={index === groups.length - 1}
+                                                    className="w-7 h-4 bg-white border border-slate-200 hover:border-emerald-400 rounded text-[9px] font-bold text-slate-500 hover:text-emerald-600 flex items-center justify-center disabled:opacity-30 disabled:hover:border-slate-200 transition-colors"
+                                                    title="下に移動"
+                                                >
+                                                    ▼
+                                                </button>
                                             </div>
-                                        ))
-                                    )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSelectGroup(g.id)}
+                                                className="flex-grow bg-white border border-slate-200 hover:border-emerald-400 rounded-xl py-2 px-3 shadow-sm text-left flex items-center justify-between group transition-all min-w-0"
+                                            >
+                                                <div className="overflow-visible">
+                                                    <div className="font-bold text-slate-800 group-hover:text-emerald-600 overflow-visible">
+                                                        {g.name || "（名称未設定のグループ）"}
+                                                    </div>
+                                                    <div className="text-sm text-slate-400 mt-0.5">
+                                                        メンバー: {g.members?.length || 0}名
+                                                    </div>
+                                                </div>
+                                                <span className="text-slate-400 font-bold ml-1.5 text-sm group-hover:text-emerald-600 shrink-0">❯</span>
+                                            </button>
+
+                                            {deleteConfirmId === g.id ? (
+                                                <div className="flex items-center space-x-1 shrink-0 bg-rose-50 p-1 rounded-xl border border-rose-100">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => handleDeleteGroupById(g.id)} 
+                                                        className="text-rose-600 hover:text-rose-700 text-xs font-bold px-1 py-0.5"
+                                                    >
+                                                        削除
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setDeleteConfirmId(null)} 
+                                                        className="text-slate-500 hover:text-slate-700 text-xs font-bold px-1 py-0.5"
+                                                    >
+                                                        取消
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDeleteConfirmId(g.id)}
+                                                    className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-rose-500 rounded-xl hover:bg-rose-50 transition-colors shrink-0"
+                                                    title="グループを削除"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    <div className="flex items-center space-x-1.5">
+                                        <div className="w-7 shrink-0" />
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateNewGroup}
+                                            className="flex-grow bg-slate-100 border border-slate-300 hover:bg-slate-300 rounded-xl py-2 px-3 shadow-sm text-center flex items-center justify-center font-bold text-slate-800 transition-all active:scale-[0.98]"
+                                        >
+                                            ＋ 新規グループを作成する
+                                        </button>
+                                        <div className="w-8 shrink-0" />
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1874,60 +1880,52 @@
                         )}
                     </main>
 
-                    <div className="fixed bottom-[64px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm p-3">
-                        <div className="max-w-md w-full mx-auto px-1">
-                            {page === 'top' && (
-                                <button
-                                    type="button"
-                                    onClick={handleCreateNewGroup}
-                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-4 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                >
-                                    新規グループを作成する
-                                </button>
-                            )}
-
-                            {page === 'group' && (
-                                <div className="flex space-x-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleCreateMatchTable}
-                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-2 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                    >
-                                        対戦表を新規作成する
-                                    </button>
-                                    
-                                    {matchList.length > 0 && (
+                    {page !== 'top' && (
+                        <div className="fixed bottom-[64px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm p-3">
+                            <div className="max-w-md w-full mx-auto px-1">
+                                {page === 'group' && (
+                                    <div className="flex space-x-2">
                                         <button
                                             type="button"
-                                            onClick={handleOpenContinueModal}
-                                            className="w-24 bg-slate-500 hover:bg-slate-600 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] leading-none shrink-0"
+                                            onClick={handleCreateMatchTable}
+                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-2 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
-                                            続きから
+                                            対戦表を新規作成する
                                         </button>
-                                    )}
-                                </div>
-                            )}
+                                        
+                                        {matchList.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={handleOpenContinueModal}
+                                                className="w-24 bg-slate-500 hover:bg-slate-600 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98] leading-none shrink-0"
+                                            >
+                                                続きから
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
 
-                            {page === 'match' && (
-                                <div className="flex space-x-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleShareUrl}
-                                        className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                    >
-                                        URLで共有する
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleCopyImage}
-                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
-                                    >
-                                        画像をコピーする
-                                    </button>
-                                </div>
-                            )}
+                                {page === 'match' && (
+                                    <div className="flex space-x-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleShareUrl}
+                                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                        >
+                                            URLで共有する
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyImage}
+                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                        >
+                                            画像をコピーする
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-start pt-1 justify-between px-6">
                         <div className="max-w-md w-full mx-auto flex items-start justify-between">
