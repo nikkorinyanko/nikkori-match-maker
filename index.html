@@ -1023,7 +1023,7 @@
                 const activeAttendees = cleanMembers.filter(m => m.present);
 
                 if (activeAttendees.length < 4) {
-                    triggerToast("⚠️ 試合を行うには参加者が最低4人必要です");
+                    triggerToast("⚠️ 対戦表を作成するには参加者が最低4人必要です");
                     return;
                 }
 
@@ -1076,7 +1076,7 @@
                 const activeAttendees = cleanMembers.filter(m => m.present);
 
                 if (activeAttendees.length < 4) {
-                    triggerToast("⚠️ 試合を行うには参加者が最低4人必要です");
+                    triggerToast("⚠️ 対戦表を作成するには参加者が最低4人必要です");
                     setShowContinueModal(false);
                     return;
                 }
@@ -1133,7 +1133,7 @@
                 const cleanMembers = members.filter(m => m.name.trim() !== "");
                 const activeAttendees = cleanMembers.filter(m => m.present);
                 if (activeAttendees.length < 4) {
-                    triggerToast("⚠️ 試合を行うには参加者が最低4人必要です");
+                    triggerToast("⚠️ 対戦表を作成するには参加者が最低4人必要です");
                     return;
                 }
 
@@ -1268,7 +1268,7 @@
                                 const item = new ClipboardItem({ "image/png": blob });
                                 await navigator.clipboard.write([item]);
                                 imageCopied = true;
-                                triggerToast("✅ コピー完了");
+                                triggerToast("✅ 画像をコピーしました");
                             } catch (err) {
                                 console.error("Clipboard API write error:", err);
                             }
