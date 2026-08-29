@@ -1341,14 +1341,14 @@
                     <header className="fixed top-0 left-0 right-0 z-40 bg-[#E9D44D] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
                         <span className="text-sm tracking-widest uppercase text-slate-800">
                             [広告主募集中]
-                        </span>
+                        </span>mail
                     </header>
 
-                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-12 flex flex-col">
+                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
                         {page === 'top' && (
-                            <div className="space-y-6">
-                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none pt-8 pb-4 text-white shadow-md text-center">
-                                    <h2 className="text-xl font-black mb-2">にっこり対戦表メーカー</h2>
+                            <div className="space-y-6 pt-8">
+                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none pt-8 pb-5 text-white shadow-md text-center">
+                                    <h2 className="text-xl font-black mb-3">にっこり対戦表メーカー</h2>
                                     <p className="text-emerald-50 text-sm">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
                                 </div>
 
@@ -1482,7 +1482,7 @@
                                             <button
                                                 type="button"
                                                 onClick={() => setActiveTab('members')}
-                                                className={`px-3.5 py-2 text-xs font-extrabold rounded-t-xl transition-all border-t border-x ${
+                                                className={`px-3.5 py-2 text-sm font-extrabold rounded-t-xl transition-all border-t border-x ${
                                                     activeTab === 'members'
                                                         ? 'bg-white text-emerald-600 shadow-sm border-slate-300 -mb-px relative z-10'
                                                         : 'bg-slate-200/90 text-slate-600 hover:text-slate-800 border-slate-300 hover:bg-slate-200'
@@ -1498,7 +1498,7 @@
                                                         handleAddPairRule();
                                                     }
                                                 }}
-                                                className={`px-3.5 py-2 text-xs font-extrabold rounded-t-xl transition-all border-t border-x ${
+                                                className={`px-3.5 py-2 text-sm font-extrabold rounded-t-xl transition-all border-t border-x ${
                                                     activeTab === 'pair'
                                                         ? 'bg-white text-emerald-600 shadow-sm border-slate-300 -mb-px relative z-10'
                                                         : 'bg-slate-200/90 text-slate-600 hover:text-slate-800 border-slate-300 hover:bg-slate-200'
@@ -1509,7 +1509,7 @@
                                             <button
                                                 type="button"
                                                 onClick={() => setActiveTab('settings')}
-                                                className={`px-3.5 py-2 text-xs font-extrabold rounded-t-xl transition-all border-t border-x ${
+                                                className={`px-3.5 py-2 text-sm font-extrabold rounded-t-xl transition-all border-t border-x ${
                                                     activeTab === 'settings'
                                                         ? 'bg-white text-emerald-600 shadow-sm border-slate-300 -mb-px relative z-10'
                                                         : 'bg-slate-200/90 text-slate-600 hover:text-slate-800 border-slate-300 hover:bg-slate-200'
@@ -1532,16 +1532,16 @@
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
                                                 <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-1 text-[11px] font-bold text-slate-500 border-b border-slate-100">
-                                                    <div className="w-11 text-center text-emerald-600 font-extrabold shrink-0">
+                                                    <div className="w-14 text-center text-emerald-600 font-extrabold shrink-0">
                                                         参加{presentCount}名
                                                     </div>
                                                     <div className="flex-1 text-center text-slate-400 font-normal min-w-0">
                                                         メンバー名(4文字以内)
                                                     </div>
-                                                    <div className="w-12 text-center text-slate-400 font-normal shrink-0">
+                                                    <div className="w-14 text-center text-slate-400 font-normal shrink-0">
                                                         性別
                                                     </div>
-                                                    <div className="w-16 text-center text-slate-400 font-normal shrink-0">
+                                                    <div className="w-20 text-center text-slate-400 font-normal shrink-0">
                                                         レベル
                                                     </div>
                                                     <div className="w-6 shrink-0"></div>
@@ -1553,7 +1553,7 @@
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleMemberPresence(index)}
-                                                                className={`w-11 py-1 text-xs font-bold rounded shadow-sm transition-all shrink-0 ${
+                                                                className={`w-14 py-1 text-sm font-bold rounded shadow-sm transition-all shrink-0 ${
                                                                     m.present 
                                                                     ? 'bg-emerald-500 text-white' 
                                                                     : 'bg-slate-200 text-slate-500'
@@ -1567,14 +1567,14 @@
                                                                 value={m.name}
                                                                 onChange={(e) => updateMemberName(index, e.target.value)}
                                                                 maxLength={4}
-                                                                className={`flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-xs font-bold shrink-0 ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
+                                                                className={`flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold shrink-0 ${!m.present ? 'text-slate-400 bg-slate-50' : 'text-slate-800'}`}
                                                             />
 
-                                                            <div className="flex space-x-0.5 shrink-0 w-12">
+                                                            <div className="flex space-x-0.5 shrink-0 w-14">
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleMemberGender(index, 'M')}
-                                                                    className={`w-6 py-1 text-xs font-bold rounded transition-all ${
+                                                                    className={`w-7 py-1 text-sm font-bold rounded transition-all ${
                                                                         m.gender === 'M'
                                                                         ? 'bg-sky-500 text-white shadow-sm'
                                                                         : 'bg-white text-slate-400 border border-slate-200'
@@ -1585,7 +1585,7 @@
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleMemberGender(index, 'F')}
-                                                                    className={`w-6 py-1 text-xs font-bold rounded transition-all ${
+                                                                    className={`w-7 py-1 text-sm font-bold rounded transition-all ${
                                                                         m.gender === 'F'
                                                                         ? 'bg-rose-500 text-white shadow-sm'
                                                                         : 'bg-white text-slate-400 border border-slate-200'
@@ -1598,7 +1598,7 @@
                                                             <button
                                                                 type="button"
                                                                 onClick={() => toggleMemberLevel(index)}
-                                                                className={`w-16 py-1 px-0.5 text-xs font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(m.level || '未設定')}`}
+                                                                className={`w-20 py-1 px-0.5 text-sm font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(m.level || '未設定')}`}
                                                                 title="タップしてレベル変更"
                                                             >
                                                                 {m.level || '未設定'}
@@ -1631,7 +1631,7 @@
                                                                 <select
                                                                     value={rule.p1}
                                                                     onChange={(e) => handleUpdatePairRule(rule.id, 'p1', e.target.value)}
-                                                                    className="flex-1 bg-white border border-slate-200 rounded px-1.5 py-1 font-bold text-slate-700 outline-none text-xs min-w-0"
+                                                                    className="flex-1 bg-white border border-slate-200 rounded px-1.5 py-1 font-bold text-slate-700 outline-none text-sm min-w-0"
                                                                 >
                                                                     <option value="">選択</option>
                                                                     {p1Options.map(m => (
@@ -1645,7 +1645,7 @@
                                                                     value={rule.p2}
                                                                     onChange={(e) => handleUpdatePairRule(rule.id, 'p2', e.target.value)}
                                                                     disabled={!rule.p1}
-                                                                    className="flex-1 bg-white border border-slate-200 rounded px-1.5 py-1 font-bold text-slate-700 outline-none text-xs min-w-0 disabled:bg-slate-100 disabled:text-slate-400"
+                                                                    className="flex-1 bg-white border border-slate-200 rounded px-1.5 py-1 font-bold text-slate-700 outline-none text-sm min-w-0 disabled:bg-slate-100 disabled:text-slate-400"
                                                                 >
                                                                     <option value="">選択</option>
                                                                     {p2Options.map(m => (
@@ -1702,7 +1702,7 @@
                                                 <button
                                                     type="button"
                                                     onClick={handleAddPairRule}
-                                                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-xl border border-dashed border-slate-300 text-xs text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-xl border border-dashed border-slate-300 text-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                                 >
                                                     ＋ ペアを追加する
                                                 </button>
@@ -2074,7 +2074,7 @@
 
             return (
                 <div className="flex items-center space-x-1.5 p-1">
-                    <div className="w-11 shrink-0"></div>
+                    <div className="w-14 shrink-0"></div>
                     
                     <input
                         type="text"
@@ -2082,21 +2082,21 @@
                         onChange={(e) => { if (e.target.value.length <= 4) setName(e.target.value); }}
                         placeholder={`名前${nextNumber}`}
                         maxLength={4}
-                        className="flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-xs font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-normal shrink-0"
+                        className="flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-normal shrink-0"
                     />
 
-                    <div className="flex space-x-0.5 shrink-0 w-12">
+                    <div className="flex space-x-0.5 shrink-0 w-14">
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('M')}
-                            className="w-6 py-1 text-xs font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
+                            className="w-7 py-1 text-sm font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
                         >
                             男
                         </button>
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('F')}
-                            className="w-6 py-1 text-xs font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
+                            className="w-7 py-1 text-sm font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
                         >
                             女
                         </button>
@@ -2105,7 +2105,7 @@
                     <button
                         type="button"
                         onClick={toggleLevel}
-                        className={`w-16 py-1 px-0.5 text-xs font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(level)}`}
+                        className={`w-20 py-1 px-0.5 text-sm font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(level)}`}
                         title="タップしてレベル変更"
                     >
                         {level}
