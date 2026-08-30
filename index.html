@@ -1922,12 +1922,12 @@
                             </div>
 
                             {/* 右側：対戦表ボタン（作成済みの対戦表が存在する場合のみ表示） */}
-                            <div className="w-38 flex justify-end">
+                            <div className="w-32 flex justify-end">
                                 {page === 'group' && matchList.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setPage('match')}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-3 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
                                         <span>作成済み対戦表</span>
                                         <span className="font-black text-sm">❯</span>
