@@ -1896,7 +1896,7 @@
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-start pt-1 justify-between px-6">
                         <div className="max-w-md w-full mx-auto flex items-start justify-between relative">
                             {/* 左側：設定ボタン */}
-                            <div className="w-38 flex justify-start">
+                            <div className="w-28 flex justify-start">
                                 {page === 'match' && (
                                     <button
                                         type="button"
@@ -1904,7 +1904,7 @@
                                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
                                         <span className="font-black text-sm">❮</span>
-                                        <span>条件設定に戻る</span>
+                                        <span>設定</span>
                                     </button>
                                 )}
                             </div>
@@ -1922,14 +1922,14 @@
                             </div>
 
                             {/* 右側：対戦表ボタン（作成済みの対戦表が存在する場合のみ表示） */}
-                            <div className="w-32 flex justify-end">
+                            <div className="w-28 flex justify-end">
                                 {page === 'group' && matchList.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setPage('match')}
                                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-3 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
-                                        <span>作成済み対戦表</span>
+                                        <span>対戦表</span>
                                         <span className="font-black text-sm">❯</span>
                                     </button>
                                 )}
