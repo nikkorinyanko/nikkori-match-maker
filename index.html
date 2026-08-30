@@ -16,7 +16,7 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Line+Seed+JP:wght@400;700;800&family=Nunito:wght@400;700;900&display=swap');
-
+        
         /* 全画面で縦スクロールバー領域を常時確保し、画面切り替え時の横ズレを完全防止 */
         html {
             overflow-y: scroll;
@@ -676,6 +676,9 @@
             const [startMatchNumInput, setStartMatchNumInput] = useState("1");
             const [lastBoundaryIndex, setLastBoundaryIndex] = useState(0);
 
+            /* モーダル表示用状態 (Help / Info / Feedback) */
+            const [infoModalTitle, setInfoModalTitle] = useState(null);
+
             const bottomRef = useRef(null);
             const tabContentRef = useRef(null);
 
@@ -1313,7 +1316,34 @@
 
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
                         {page === 'top' && (
-                            <div className="space-y-6 pt-8">
+                            <div className="space-y-1 pt-4">
+                                {/* 緑のタイトル画像（バナー）の上のリンク群 */}
+                                <div className="flex justify-start space-x-1 text-md font-bold text-slate-500 px-1">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setInfoModalTitle("Help")}
+                                        className="hover:text-emerald-600 transition-colors"
+                                    >
+                                        Help
+                                    </button>
+                                    <span className="text-slate-300 font-normal">｜</span>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setInfoModalTitle("Info")}
+                                        className="hover:text-emerald-600 transition-colors"
+                                    >
+                                        Info
+                                    </button>
+                                    <span className="text-slate-300 font-normal">｜</span>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setInfoModalTitle("Feedback")}
+                                        className="hover:text-emerald-600 transition-colors"
+                                    >
+                                        Feedback
+                                    </button>
+                                </div>
+
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none pt-8 pb-5 text-white shadow-md text-center">
                                     <h2 className="text-xl font-black mb-3">にっこり対戦表メーカー</h2>
                                     <p className="text-emerald-50 text-sm">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
@@ -1494,7 +1524,6 @@
                                         </div>
                                     </div>
 
-                                    {}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1582,7 +1611,6 @@
                                             </div>
                                         )}
 
-                                        {}
                                         {activeTab === 'pair' && (
                                             <div className="space-y-3 py-1">
                                                 <div className="text-xs font-bold text-slate-600 text-left pb-1 border-b border-slate-100">
@@ -1677,7 +1705,6 @@
                                             </div>
                                         )}
 
-                                        {}
                                         {activeTab === 'settings' && (
                                             <div className="space-y-3 pt-1">
                                                 <div className="flex justify-between items-center mb-2">
@@ -1892,7 +1919,6 @@
                         </div>
                     )}
 
-                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-start pt-1 justify-between px-6">
                         <div className="max-w-md w-full mx-auto flex items-start justify-between relative">
                             {/* 左側：設定ボタン */}
@@ -1901,7 +1927,7 @@
                                     <button
                                         type="button"
                                         onClick={handleBackToGroup}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-5 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
                                         <span className="font-black text-sm">❮</span>
                                         <span>設定</span>
@@ -1921,13 +1947,13 @@
                                 </button>
                             </div>
 
-                            {/* 右側：対戦表ボタン（作成済みの対戦表が存在する場合のみ表示） */}
+                            {/* 右側：対戦表ボタン（作成済み対戦表が存在する場合のみ表示） */}
                             <div className="w-28 flex justify-end">
                                 {page === 'group' && matchList.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => setPage('match')}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-3 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
                                         <span>対戦表</span>
                                         <span className="font-black text-sm">❯</span>
@@ -1938,6 +1964,27 @@
                     </footer>
 
                     {}
+                    {/* Help / Info / Feedback 用モーダル */}
+                    {infoModalTitle && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl max-w-xs w-full p-6 space-y-4 shadow-2xl text-center">
+                                <h3 className="font-extrabold text-lg text-slate-800">
+                                    [{infoModalTitle}]
+                                </h3>
+                                <p className="text-sm font-bold text-slate-500 py-4">
+                                    Under construction
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setInfoModalTitle(null)}
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md active:scale-95 text-sm"
+                                >
+                                    閉じる
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
