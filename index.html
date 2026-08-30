@@ -16,6 +16,12 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Line+Seed+JP:wght@400;700;800&family=Nunito:wght@400;700;900&display=swap');
+
+        /* 全画面で縦スクロールバー領域を常時確保し、画面切り替え時の横ズレを完全防止 */
+        html {
+            overflow-y: scroll;
+        }
+
         body {
             font-family: 'Line Seed JP', 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f8fafc;
@@ -737,6 +743,30 @@
                 setGroups(loadedGroups);
             }, []);
 
+            // オートセーブ：アクティブなグループの状態変化を常に同期・保持する
+            useEffect(() => {
+                if (!activeGroupId) return;
+
+                setGroups(prevGroups => {
+                    const updated = prevGroups.map(g => {
+                        if (g.id === activeGroupId) {
+                            return { 
+                                ...g, 
+                                name: groupName, 
+                                members: members, 
+                                sharedMembers: sharedMembers,
+                                pairRules: pairRules,
+                                settings: { priority: priorityOrder, genderMode: genderMode, levelMode: levelMode },
+                                matchList: matchList 
+                            };
+                        }
+                        return g;
+                    });
+                    localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updated));
+                    return updated;
+                });
+            }, [activeGroupId, groupName, members, sharedMembers, pairRules, priorityOrder, genderMode, levelMode, matchList]);
+
             useEffect(() => {
                 window.scrollTo(0, 0);
             }, [page]);
@@ -829,37 +859,6 @@
                 updated[targetIndex] = temp;
                 setGroups(updated);
                 localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updated));
-            };
-
-            const handleSaveGroup = () => {
-                const resolvedName = groupName.trim() || "（名称未設定のグループ）";
-                const cleanMembers = members.filter(m => m.name.trim() !== "");
-
-                const validMemberIds = new Set(cleanMembers.map(m => m.id));
-                const cleanPairRules = pairRules.filter(r => 
-                    r.p1 && r.p2 && validMemberIds.has(r.p1) && validMemberIds.has(r.p2)
-                );
-
-                const updatedGroups = groups.map(g => {
-                    if (g.id === activeGroupId) {
-                        return { 
-                            ...g, 
-                            name: resolvedName, 
-                            members: cleanMembers, 
-                            sharedMembers: sharedMembers,
-                            pairRules: cleanPairRules,
-                            settings: { priority: priorityOrder, genderMode: genderMode, levelMode: levelMode },
-                            matchList: matchList 
-                        };
-                    }
-                    return g;
-                });
-                setGroups(updatedGroups);
-                setMembers(cleanMembers);
-                setPairRules(cleanPairRules);
-                setGroupName(resolvedName);
-                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
-                triggerToast("💾 保存しました");
             };
 
             const handleDeleteGroupById = (gId) => {
@@ -1027,8 +1026,6 @@
                     return;
                 }
 
-                handleSaveGroup();
-
                 const generated = [];
                 const baseStatsMap = {}; 
                 activeAttendees.forEach(m => baseStatsMap[m.id] = {matchCount:0, consecutivePlay:0, consecutiveRest:0});
@@ -1046,15 +1043,6 @@
 
                 setMatchList(finalizedList);
                 setLastBoundaryIndex(0);
-                
-                const updatedGroups = groups.map(g => {
-                    if (g.id === activeGroupId) {
-                        return { ...g, matchList: finalizedList };
-                    }
-                    return g;
-                });
-                setGroups(updatedGroups);
-                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
 
                 setMatchPage(0);
                 setPage('match');
@@ -1081,8 +1069,6 @@
                     return;
                 }
 
-                handleSaveGroup();
-
                 const pastHistory = matchList.slice(0, startNum - 1);
                 const baseStatsMap = calculateBaseStats(pastHistory, cleanMembers);
 
@@ -1104,15 +1090,6 @@
                 }));
 
                 setMatchList(finalizedList);
-
-                const updatedGroups = groups.map(g => {
-                    if (g.id === activeGroupId) {
-                        return { ...g, matchList: finalizedList };
-                    }
-                    return g;
-                });
-                setGroups(updatedGroups);
-                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
 
                 const targetPage = Math.floor((startNum - 1) / 10);
                 setMatchPage(targetPage);
@@ -1159,16 +1136,6 @@
                 }));
 
                 setMatchList(finalizedList);
-                
-                const updatedGroups = groups.map(g => {
-                    if (g.id === activeGroupId) {
-                        return { ...g, matchList: finalizedList };
-                    }
-                    return g;
-                });
-                setGroups(updatedGroups);
-                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
-
                 setMatchPage(targetPageIndex);
             };
 
@@ -1437,6 +1404,7 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'group' && (
                             <div className="space-y-3 flex-grow flex flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1524,16 +1492,9 @@
                                                 条件設定
                                             </button>
                                         </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={handleSaveGroup}
-                                            className="mb-1 mr-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm px-4 py-1 rounded-lg transition-all shadow-sm active:scale-95 flex items-center space-x-1 shrink-0"
-                                        >
-                                            <span>保存</span>
-                                        </button>
                                     </div>
 
+                                    {}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1621,6 +1582,7 @@
                                             </div>
                                         )}
 
+                                        {}
                                         {activeTab === 'pair' && (
                                             <div className="space-y-3 py-1">
                                                 <div className="text-xs font-bold text-slate-600 text-left pb-1 border-b border-slate-100">
@@ -1715,6 +1677,7 @@
                                             </div>
                                         )}
 
+                                        {}
                                         {activeTab === 'settings' && (
                                             <div className="space-y-3 pt-1">
                                                 <div className="flex justify-between items-center mb-2">
@@ -1798,6 +1761,7 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
@@ -1880,6 +1844,7 @@
                         )}
                     </main>
 
+                    {}
                     {page !== 'top' && (
                         <div className="fixed bottom-[64px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm p-3">
                             <div className="max-w-md w-full mx-auto px-1">
@@ -1927,24 +1892,25 @@
                         </div>
                     )}
 
+                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-start pt-1 justify-between px-6">
-                        <div className="max-w-md w-full mx-auto flex items-start justify-between">
+                        <div className="max-w-md w-full mx-auto flex items-start justify-between relative">
                             {/* 左側：設定ボタン */}
-                            <div className="w-28 flex justify-start">
+                            <div className="w-38 flex justify-start">
                                 {page === 'match' && (
                                     <button
                                         type="button"
                                         onClick={handleBackToGroup}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-5 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
                                         <span className="font-black text-sm">❮</span>
-                                        <span>設定</span>
+                                        <span>条件設定に戻る</span>
                                     </button>
                                 )}
                             </div>
 
                             {/* 中央：全画面共通 HOMEボタン */}
-                            <div className="flex justify-center">
+                            <div className="absolute left-1/2 -translate-x-1/2 flex justify-center">
                                 <button
                                     type="button"
                                     onClick={handleGoHome}
@@ -1955,21 +1921,15 @@
                                 </button>
                             </div>
 
-                            {/* 右側：対戦表ボタン */}
-                            <div className="w-28 flex justify-end">
-                                {page === 'group' && (
+                            {/* 右側：対戦表ボタン（作成済みの対戦表が存在する場合のみ表示） */}
+                            <div className="w-38 flex justify-end">
+                                {page === 'group' && matchList.length > 0 && (
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            if (matchList.length > 0) {
-                                                setPage('match');
-                                            } else {
-                                                handleCreateMatchTable();
-                                            }
-                                        }}
+                                        onClick={() => setPage('match')}
                                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base py-1 px-4 rounded-full shadow-md flex items-center space-x-1 transition-all active:scale-95 active:shadow-sm"
                                     >
-                                        <span>対戦表</span>
+                                        <span>作成済み対戦表</span>
                                         <span className="font-black text-sm">❯</span>
                                     </button>
                                 )}
@@ -1977,6 +1937,7 @@
                         </div>
                     </footer>
 
+                    {}
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-[200px] w-full p-4 space-y-3 shadow-2xl relative">
