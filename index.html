@@ -1970,16 +1970,16 @@
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             {infoModalTitle === 'Feedback' ? (
                                 <form 
-                                    action="https://formsubmit.co/nikkorinyankotennis@gmail.com" 
+                                    action="https://formsubmit.co/b9b1c035b0ccebdf060e3f1a214cc2f6" 
                                     method="POST"
                                     onSubmit={() => {
-                                        triggerToast("ご意見を送信しました");
+                                        triggerToast("送信しました");
                                     }}
                                     className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 shadow-2xl"
                                 >
                                     {/* FormSubmit送信データ用 隠し入力要素 */}
                                     <input type="hidden" name="_subject" value="【にっこり対戦表メーカー】ご意見・フィードバック" />
-                                    <input type="hidden" name="group_name" value={groupName || "未指定"} />
+                                    <input type="hidden" name="group_name" value={groupName || "にっこり対戦表メーカーFeedback"} />
                                     <h3 className="font-extrabold text-base text-slate-800 text-center">
                                         ご意見・ご要望や不具合の報告
                                     </h3>
