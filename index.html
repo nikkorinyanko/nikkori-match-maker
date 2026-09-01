@@ -678,6 +678,7 @@
 
             /* モーダル表示用状態 (Help / Info / Feedback) */
             const [infoModalTitle, setInfoModalTitle] = useState(null);
+            const [feedbackText, setFeedbackText] = useState("");
 
             const bottomRef = useRef(null);
             const tabContentRef = useRef(null);
@@ -1967,21 +1968,68 @@
                     {/* Help / Info / Feedback 用モーダル */}
                     {infoModalTitle && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                            <div className="bg-white rounded-2xl max-w-xs w-full p-6 space-y-4 shadow-2xl text-center">
-                                <h3 className="font-extrabold text-lg text-slate-800">
-                                    [{infoModalTitle}]
-                                </h3>
-                                <p className="text-sm font-bold text-slate-500 py-4">
-                                    Under construction
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setInfoModalTitle(null)}
-                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md active:scale-95 text-sm"
+                            {infoModalTitle === 'Feedback' ? (
+                                <form 
+                                    action="https://formsubmit.co/nikkorinyankotennis@gmail.com" 
+                                    method="POST"
+                                    onSubmit={() => {
+                                        triggerToast("ご意見を送信しました");
+                                    }}
+                                    className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 shadow-2xl"
                                 >
-                                    閉じる
-                                </button>
-                            </div>
+                                    {/* FormSubmit送信データ用 隠し入力要素 */}
+                                    <input type="hidden" name="_subject" value="【にっこり対戦表メーカー】ご意見・フィードバック" />
+                                    <input type="hidden" name="group_name" value={groupName || "未指定"} />
+                                    <h3 className="font-extrabold text-base text-slate-800 text-center">
+                                        ご意見・ご要望や不具合の報告
+                                    </h3>
+                                    <div>
+                                        <textarea
+                                            name="message"
+                                            value={feedbackText}
+                                            onChange={(e) => setFeedbackText(e.target.value)}
+                                            placeholder="具体的な内容をこちらにお書きください。"
+                                            rows={5}
+                                            required
+                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:bg-white outline-none text-sm text-slate-800 resize-none font-medium placeholder:text-slate-400"
+                                        />
+                                        <p className="text-[11px] font-bold text-slate-400 text-center mt-1">
+                                            （お問い合わせには対応しておりません。）
+                                        </p>
+                                    </div>
+                                    <div className="flex space-x-2 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setInfoModalTitle(null)}
+                                            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 px-3 rounded-xl transition-all text-sm"
+                                        >
+                                            閉じる
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-3 rounded-xl transition-all shadow-md active:scale-95 text-sm"
+                                        >
+                                            送信
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <div className="bg-white rounded-2xl max-w-xs w-full p-6 space-y-4 shadow-2xl text-center">
+                                    <h3 className="font-extrabold text-lg text-slate-800">
+                                        [{infoModalTitle}]
+                                    </h3>
+                                    <p className="text-sm font-bold text-slate-500 py-4">
+                                        Under construction
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setInfoModalTitle(null)}
+                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md active:scale-95 text-sm"
+                                    >
+                                        閉じる
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
