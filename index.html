@@ -1939,21 +1939,21 @@
                                         <button
                                             type="button"
                                             onClick={handleShareQr}
-                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
                                             QRで共有
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleShareUrl}
-                                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-base sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
                                             URLで共有
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleCopyImage}
-                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
                                             画像で共有
                                         </button>
@@ -2024,14 +2024,14 @@
                                     <input type="hidden" name="_subject" value="にっこり対戦表メーカー" />
                                     <input type="hidden" name="group_name" value={groupName || "Feedback"} />
                                     <h3 className="font-extrabold text-base text-slate-800 text-center">
-                                        ご意見・ご要望や不具合の報告
+                                        Feedback
                                     </h3>
                                     <div>
                                         <textarea
                                             name="message"
                                             value={feedbackText}
                                             onChange={(e) => setFeedbackText(e.target.value)}
-                                            placeholder="具体的な内容をこちらにお書きください。"
+                                            placeholder="ご意見・ご要望や不具合のご報告などをお書きください。"
                                             rows={5}
                                             required
                                             className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-500 focus:bg-white outline-none text-sm text-slate-800 resize-none font-medium placeholder:text-slate-400"
@@ -2056,6 +2056,45 @@
                                         </button>
                                     </div>
                                 </form>
+                            ) : infoModalTitle === 'Info' ? (
+                                <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl text-left max-h-[80vh] overflow-y-auto">
+                                    <h3 className="font-extrabold text-lg text-slate-800 text-center border-b pb-2 border-slate-100">
+                                        Infomation
+                                    </h3>
+                                    
+                                    <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+                                        <section>
+                                            <h4 className="font-extrabold text-slate-800 text-sm mb-1">■ アプリ概要</h4>
+                                            <p>テニスやバドミントンのダブルスの組み合わせを簡単に作成・共有することができます。優れたアルゴリズムにより、さまざまな条件での最適な組み合わせを作成できます。</p>
+                                        </section>
+
+                                        <section>
+                                            <h4 className="font-extrabold text-slate-800 text-sm mb-1">■ 運営者情報</h4>
+                                            <p>にっこりニャンコテニスサービス</p>
+                                        </section>
+
+                                        <section>
+                                            <h4 className="font-extrabold text-slate-800 text-sm mb-1">■ 利用規約・免責事項</h4>
+                                            <p>・本サービスで生成される対戦表およびアルゴリズムの組み合わせ結果について、その完全性・正確性を保証するものではありません。</p>
+                                            <p>・本アプリは入力された設定やグループデータをブラウザのローカルストレージに自動保存します。ブラウザのキャッシュ削除等によるデータの消失や不具合等について、当サービスは一切の責任を負いかねますのであらかじめご了承ください。</p>
+                                        </section>
+
+                                        <section>
+                                            <h4 className="font-extrabold text-slate-800 text-sm mb-1">■ プライバシーポリシー</h4>
+                                            <p className="mb-1">1. <strong>端末ストレージ（LocalStorage）の利用</strong><br />当サービスでは、ユーザーの利便性向上（グループデータ、メンバー名、作成条件等の保存および自動読み込み）を目的として、ユーザーの端末（ブラウザ）のローカルストレージ（LocalStorage）を使用しています。入力・設定されたデータはすべてユーザーの端末内のみに保持され、当サービスのサーバーへ送信・保存されることはありません。
+　　　　　　　　　　　　　　　　　　　　　　</p>
+                                            <p>2. <strong>広告配信およびアクセス解析について</strong><br />当サービスでは、第三者配信事業者による広告の配信や、アクセス解析のためにCookieを使用する場合があります。これにより得られる情報は匿名であり、個人を特定するものではありません。Cookieの使用を希望されない場合は、お使いのブラウザの設定でCookieを無効にすることが可能です。</p>
+                                        </section>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setInfoModalTitle(null)}
+                                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md active:scale-95 text-sm mt-2"
+                                    >
+                                        閉じる
+                                    </button>
+                                </div>
                             ) : (
                                 <div className="bg-white rounded-2xl max-w-xs w-full p-6 space-y-4 shadow-2xl text-center">
                                     <h3 className="font-extrabold text-lg text-slate-800">
@@ -2121,11 +2160,8 @@
                             <div className="bg-white rounded-2xl max-w-xs w-full p-6 space-y-4 shadow-2xl relative text-center">
                                 <div className="space-y-1">
                                     <h3 className="font-extrabold text-lg text-slate-800">
-                                        QRコードで共有
+                                        QRコードで対戦表を共有
                                     </h3>
-                                    <p className="text-xs text-slate-500 leading-normal font-medium">
-                                        スマホのカメラで読み取って対戦表を開くことができます。
-                                    </p>
                                 </div>
 
                                 <div className="flex justify-center p-3 bg-white border border-slate-200 rounded-xl shadow-inner">
