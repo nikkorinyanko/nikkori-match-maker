@@ -13,6 +13,8 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <!-- html2canvas CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- QRCode CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Line+Seed+JP:wght@400;700;800&family=Nunito:wght@400;700;900&display=swap');
@@ -671,6 +673,8 @@
             const [toast, setToast] = useState({ show: false, message: "" });
             const [capturedImage, setCapturedImage] = useState(null);
             const [showImageModal, setShowImageModal] = useState(false);
+            const [showQrModal, setShowQrModal] = useState(false);
+            const [qrImageUrl, setQrImageUrl] = useState('');
             
             const [showContinueModal, setShowContinueModal] = useState(false);
             const [startMatchNumInput, setStartMatchNumInput] = useState("1");
@@ -1141,6 +1145,38 @@
 
                 setMatchList(finalizedList);
                 setMatchPage(targetPageIndex);
+            };
+
+            const handleShareQr = async () => {
+                const presentMembers = members.length > 0 ? members.filter(m => m.present) : sharedMembers;
+                if (presentMembers.length === 0 || matchList.length === 0) {
+                    triggerToast("⚠️ 共有する対戦表がありません");
+                    return;
+                }
+
+                try {
+                    const shareData = await encodeShareData(presentMembers, matchList);
+                    const shareUrl = `${window.location.origin}${window.location.pathname}#share:${shareData}`;
+                    
+                    let qrDataUrl = '';
+                    if (typeof QRCode !== 'undefined' && QRCode.toDataURL) {
+                        try {
+                            qrDataUrl = await QRCode.toDataURL(shareUrl, { width: 280, margin: 2 });
+                        } catch (err) {
+                            console.warn("QRCode.toDataURL failed:", err);
+                        }
+                    }
+                    
+                    if (!qrDataUrl) {
+                        qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(shareUrl)}`;
+                    }
+
+                    setQrImageUrl(qrDataUrl);
+                    setShowQrModal(true);
+                } catch (err) {
+                    console.error("QR generation error:", err);
+                    triggerToast("⚠️ QRコードの生成に失敗しました");
+                }
             };
 
             const handleShareUrl = async () => {
@@ -1899,18 +1935,25 @@
                                 )}
 
                                 {page === 'match' && (
-                                    <div className="flex space-x-2">
+                                    <div className="flex space-x-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={handleShareQr}
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                        >
+                                            QRで共有
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={handleShareUrl}
-                                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
                                             URLで共有
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleCopyImage}
-                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-base py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm py-3.5 px-1 rounded-xl shadow-md text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
                                             画像で共有
                                         </button>
@@ -2069,6 +2112,39 @@
                                         OK
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showQrModal && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl max-w-xs w-full p-6 space-y-4 shadow-2xl relative text-center">
+                                <div className="space-y-1">
+                                    <h3 className="font-extrabold text-lg text-slate-800">
+                                        QRコードで共有
+                                    </h3>
+                                    <p className="text-xs text-slate-500 leading-normal font-medium">
+                                        スマホのカメラで読み取って対戦表を開くことができます。
+                                    </p>
+                                </div>
+
+                                <div className="flex justify-center p-3 bg-white border border-slate-200 rounded-xl shadow-inner">
+                                    {qrImageUrl ? (
+                                        <img src={qrImageUrl} alt="QR Code" className="w-56 h-56 block object-contain" />
+                                    ) : (
+                                        <div className="w-56 h-56 flex items-center justify-center text-slate-400 font-bold text-xs">
+                                            生成中...
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowQrModal(false)}
+                                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl transition-all shadow-md active:scale-95 text-sm"
+                                >
+                                    閉じる
+                                </button>
                             </div>
                         </div>
                     )}
