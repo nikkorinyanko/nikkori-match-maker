@@ -1561,7 +1561,8 @@
                                         </div>
                                     </div>
 
-                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[calc(100vh-275px)]">
+                                    {/* ① 修正: タブ内エリアのデフォルト縦幅を min-h-[350px] に短縮（①～⑧がちょうどおさまる高さ） */}
+                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[350px]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
                                                 <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-1 text-[11px] font-bold text-slate-500 border-b border-slate-100">
@@ -1827,7 +1828,8 @@
 
                         {}
                         {page === 'match' && (
-                            <div className="space-y-3">
+                            /* ③ 修正: 対戦表カードとページネーションボタンの間隔を狭める（space-y-1.5） */
+                            <div className="space-y-0.5">
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
                                     <div className="flex justify-between items-end border-b-2 border-slate-800 pb-1 mb-1">
                                         <h2 className="font-bold text-base leading-[1.3] text-slate-800 overflow-visible pr-2 capture-safe-text">
@@ -1883,7 +1885,8 @@
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-center px-1 pt-2">
+                                {/* ③ 修正: 上部余白を pt-0.5 に詰めて距離を接近させる */}
+                                <div className="flex justify-between items-center px-1 pt-0.5">
                                     <button 
                                         type="button"
                                         onClick={() => setMatchPage(p => Math.max(0, p - 1))}
@@ -1963,7 +1966,8 @@
                         </div>
                     )}
 
-                    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-50 h-[60px] flex items-start pt-1 justify-between px-6">
+                    {/* ② 修正: フッターエリア背景をグレー帯 (bg-slate-200 border-t border-slate-300) に変更 */}
+                    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-200 border-t border-slate-300 h-[60px] flex items-start pt-1 justify-between px-6">
                         <div className="max-w-md w-full mx-auto flex items-start justify-between relative">
                             {/* 左側：設定ボタン */}
                             <div className="w-28 flex justify-start">
@@ -2115,7 +2119,10 @@
                                     <div className="space-y-3 text-xs text-slate-600 leading-relaxed overflow-y-auto mt-3 pr-1">
                                         <section>
                                             <h4 className="font-extrabold text-slate-800 text-sm mb-1">■ 基本的な使い方</h4>
-                                            <p>under construction</p>
+                                            <p>1.グループを作成します。作成したグループは、次回から呼び出して使うことができます。</p>
+                                            <p>2.メンバーを登録します。男女を選ぶだけで登録できます。名前やレベルの設定は任意です。</p>
+                                            <p>3.参加メンバーを選んで対戦表を作成します。さまざまな条件を設定することもできます。<p/>
+                                            <p>4.対戦表をメンバーに共有します。QRコード、URL、画像で共有できます。</p>
                                         </section>
 
                                         <section>
