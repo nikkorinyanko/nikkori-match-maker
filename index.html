@@ -17,8 +17,6 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Line+Seed+JP:wght@400;700;800&family=Nunito:wght@400;700;900&display=swap');
-        
         /* 全画面で縦スクロールバー領域を常時確保し、画面切り替え時の横ズレを完全防止 */
         html {
             overflow-y: scroll;
@@ -69,14 +67,12 @@
             count: '出場数均等',
             break: '連続休憩回避',
             consecutive: '連続出場回避',
-            pair: '同一ペア回避',
-            opponent: '同一相手回避',
-            card: '同一カード回避',
+            duplication: '重複対戦回避',
             gender: '男女バランス',
             level: 'レベルバランス'
         };
 
-        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'card', 'gender', 'level'];
+        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'duplication', 'gender', 'level'];
         const DEFAULT_GENDER_MODE = 'consider';
         const DEFAULT_LEVEL_MODE = 'consider';
         const LEVELS = ['未設定', '初級', '初中級', '中級', '中上級', '上級'];
@@ -249,7 +245,14 @@
 
         const ensurePriorityList = (pList) => {
             if (!Array.isArray(pList)) return DEFAULT_PRIORITY;
-            let list = pList.filter(p => Object.keys(PRIORITY_LABELS).includes(p));
+            let list = [];
+            pList.forEach(p => {
+                if (['pair', 'opponent', 'card', 'bench', 'duplication'].includes(p)) {
+                    if (!list.includes('duplication')) list.push('duplication');
+                } else if (Object.keys(PRIORITY_LABELS).includes(p)) {
+                    if (!list.includes(p)) list.push(p);
+                }
+            });
             DEFAULT_PRIORITY.forEach(dp => {
                 if (!list.includes(dp)) list.push(dp);
             });
@@ -506,6 +509,27 @@
                 });
                 return count + 1;
             }
+
+            if (criterion === 'bench') {
+                const currentAbsentees = presentMembers.filter(m => !courtIds.has(m.id)).map(m => m.id);
+                if (currentAbsentees.length < 2) return 0;
+
+                let sum = 0;
+                for (let i = 0; i < currentAbsentees.length; i++) {
+                    for (let j = i + 1; j < currentAbsentees.length; j++) {
+                        const pA = currentAbsentees[i];
+                        const pB = currentAbsentees[j];
+                        let count = 0;
+                        fullHistory.forEach(m => {
+                            if (m.absentees && m.absentees.includes(pA) && m.absentees.includes(pB)) {
+                                count++;
+                            }
+                        });
+                        sum += Math.pow(count + 1, 2);
+                    }
+                }
+                return sum;
+            }
             
             if (criterion === 'gender') {
                 if (genderMode === 'none') return 0;
@@ -618,12 +642,19 @@
                 }
             }
             
+            const expandKey = (key) => {
+                if (key === 'duplication') return ['card', 'pair', 'opponent', 'bench'];
+                return [key];
+            };
+
             const evaluationSteps = [];
             evaluationSteps.push('pair_rule_must');
-            if (priorityOrder.length > 0) evaluationSteps.push(priorityOrder[0]);
+            if (priorityOrder.length > 0) {
+                evaluationSteps.push(...expandKey(priorityOrder[0]));
+            }
             evaluationSteps.push('pair_rule_prefer');
             for (let i = 1; i < priorityOrder.length; i++) {
-                evaluationSteps.push(priorityOrder[i]);
+                evaluationSteps.push(...expandKey(priorityOrder[i]));
             }
 
             let candidates = [...configurations];
@@ -1471,7 +1502,6 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'group' && (
                             <div className="space-y-3 flex-grow flex flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
@@ -1561,7 +1591,6 @@
                                         </div>
                                     </div>
 
-                                    {/* ① 修正: タブ内エリアのデフォルト縦幅を min-h-[350px] に短縮（①～⑧がちょうどおさまる高さ） */}
                                     <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[350px]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
@@ -1826,9 +1855,7 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'match' && (
-                            /* ③ 修正: 対戦表カードとページネーションボタンの間隔を狭める（space-y-1.5） */
                             <div className="space-y-0.5">
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
                                     <div className="flex justify-between items-end border-b-2 border-slate-800 pb-1 mb-1">
@@ -1885,7 +1912,6 @@
                                     </div>
                                 </div>
 
-                                {/* ③ 修正: 上部余白を pt-0.5 に詰めて距離を接近させる */}
                                 <div className="flex justify-between items-center px-1 pt-0.5">
                                     <button 
                                         type="button"
@@ -1911,7 +1937,6 @@
                         )}
                     </main>
 
-                    {}
                     {page !== 'top' && (
                         <div className="fixed bottom-[64px] left-0 right-0 z-30 bg-slate-50/90 backdrop-blur-sm p-3">
                             <div className="max-w-md w-full mx-auto px-1">
@@ -1966,7 +1991,6 @@
                         </div>
                     )}
 
-                    {/* ② 修正: フッターエリア背景をグレー帯 (bg-slate-200 border-t border-slate-300) に変更 */}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-200 border-t border-slate-300 h-[60px] flex items-start pt-1 justify-between px-6">
                         <div className="max-w-md w-full mx-auto flex items-start justify-between relative">
                             {/* 左側：設定ボタン */}
@@ -2146,8 +2170,6 @@
                             )}
                         </div>
                     )}
-            
-                                 
 
                     {showContinueModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
