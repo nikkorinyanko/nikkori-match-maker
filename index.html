@@ -72,9 +72,9 @@
             level: 'レベルバランス'
         };
 
-        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'duplication', 'gender', 'level'];
-        const DEFAULT_GENDER_MODE = 'consider';
-        const DEFAULT_LEVEL_MODE = 'consider';
+        const DEFAULT_PRIORITY = ['count', 'duplication', 'break', 'consecutive', 'gender', 'level'];
+        const DEFAULT_GENDER_MODE = 'none';
+        const DEFAULT_LEVEL_MODE = 'none';
         const LEVELS = ['未設定', '初級', '初中級', '中級', '中上級', '上級'];
 
         async function compressData(bytes) {
@@ -275,12 +275,12 @@
                 case 'balance': return '均等';
                 case 'consider': return 'やや考慮';
                 case 'none': return '考慮なし';
-                default: return 'やや考慮';
+                default: return '考慮なし';
             }
         };
 
         const cycleGenderMode = (current) => {
-            const modes = ['consider', 'balance', 'mix', 'none'];
+            const modes = ['none', 'consider', 'balance', 'mix'];
             const idx = modes.indexOf(current);
             return modes[(idx + 1) % modes.length];
         };
@@ -290,12 +290,12 @@
                 case 'prioritize': return '重視';
                 case 'consider': return 'やや考慮';
                 case 'none': return '考慮なし';
-                default: return 'やや考慮';
+                default: return '考慮なし';
             }
         };
 
         const cycleLevelMode = (current) => {
-            const modes = ['consider', 'prioritize', 'none'];
+            const modes = ['none', 'consider', 'prioritize'];
             const idx = modes.indexOf(current);
             return modes[(idx + 1) % modes.length];
         };
@@ -442,10 +442,13 @@
                 return sum;
             }
 
+            // 同一対戦ペア（パートナー）重複回避
             if (criterion === 'pair') {
                 let sum = 0;
-                const t1 = config.t1.map(p => p.id);
-                const t2 = config.t2.map(p => p.id);
+                const p1 = config.t1[0].id;
+                const p2 = config.t1[1].id;
+                const p3 = config.t2[0].id;
+                const p4 = config.t2[1].id;
                 
                 const getPairCount = (pA, pB) => {
                     let count = 0;
@@ -458,18 +461,16 @@
                     return count;
                 };
 
-                presentMembers.forEach(m => {
-                    if (t1.includes(m.id)) {
-                        const partner = t1[0] === m.id ? t1[1] : t1[0];
-                        sum += Math.pow(getPairCount(m.id, partner) + 1, 2);
-                    } else if (t2.includes(m.id)) {
-                        const partner = t2[0] === m.id ? t2[1] : t2[0];
-                        sum += Math.pow(getPairCount(m.id, partner) + 1, 2);
-                    }
-                });
+                const c1 = getPairCount(p1, p2);
+                const c2 = getPairCount(p3, p4);
+
+                sum += Math.pow(c1, 2) * 10 + (c1 > 0 ? 5 : 0);
+                sum += Math.pow(c2, 2) * 10 + (c2 > 0 ? 5 : 0);
+
                 return sum;
             }
 
+            // 同一対戦相手重複回避
             if (criterion === 'opponent') {
                 let sum = 0;
                 const t1 = config.t1.map(p => p.id);
@@ -486,16 +487,21 @@
                     return count;
                 };
 
-                presentMembers.forEach(m => {
-                    if (t1.includes(m.id)) {
-                        sum += Math.pow(getOpponentCount(m.id, t2[0]) + 1, 2) + Math.pow(getOpponentCount(m.id, t2[1]) + 1, 2);
-                    } else if (t2.includes(m.id)) {
-                        sum += Math.pow(getOpponentCount(m.id, t1[0]) + 1, 2) + Math.pow(getOpponentCount(m.id, t1[1]) + 1, 2);
-                    }
+                const ops = [
+                    getOpponentCount(t1[0], t2[0]),
+                    getOpponentCount(t1[0], t2[1]),
+                    getOpponentCount(t1[1], t2[0]),
+                    getOpponentCount(t1[1], t2[1])
+                ];
+
+                ops.forEach(c => {
+                    sum += Math.pow(c, 2) * 10 + (c > 0 ? 5 : 0);
                 });
+
                 return sum;
             }
 
+            // 同一対戦カード（4人全く同じ構成）重複回避
             if (criterion === 'card') {
                 const t1 = config.t1.map(p => p.id).sort().join(',');
                 const t2 = config.t2.map(p => p.id).sort().join(',');
@@ -507,9 +513,10 @@
                         count++;
                     }
                 });
-                return count + 1;
+                return Math.pow(count, 2) * 20 + (count > 0 ? 10 : 0);
             }
 
+            // 同一ベンチペア重複回避
             if (criterion === 'bench') {
                 const currentAbsentees = presentMembers.filter(m => !courtIds.has(m.id)).map(m => m.id);
                 if (currentAbsentees.length < 2) return 0;
@@ -525,7 +532,7 @@
                                 count++;
                             }
                         });
-                        sum += Math.pow(count + 1, 2);
+                        sum += Math.pow(count, 2) * 10 + (count > 0 ? 5 : 0);
                     }
                 }
                 return sum;
@@ -1385,7 +1392,6 @@
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
                         {page === 'top' && (
                             <div className="space-y-2.5 pt-4">
-                                {/* 緑のタイトル画像（バナー）の上のリンク群 */}
                                 <div className="flex justify-start space-x-1 text-sm font-bold text-slate-500 px-1">
                                     <button 
                                         type="button" 
@@ -2338,8 +2344,7 @@
             );
         }
 
-        const container = document.getElementById('root');
-        const root = ReactDOM.createRoot(container);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
