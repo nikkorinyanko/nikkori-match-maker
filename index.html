@@ -820,7 +820,7 @@
             useEffect(() => {
                 if (members.length > prevMembersLength.current) {
                     setTimeout(() => {
-                        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 100);
                 }
                 prevMembersLength.current = members.length;
@@ -829,7 +829,7 @@
             useEffect(() => {
                 if (pairRules.length > prevPairRulesLength.current) {
                     setTimeout(() => {
-                        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 100);
                 }
                 prevPairRulesLength.current = pairRules.length;
@@ -1509,7 +1509,7 @@
                         )}
 
                         {page === 'group' && (
-                            <div className="space-y-3 flex-grow flex flex-col">
+                            <div className="space-y-3 flex-col">
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
@@ -1553,7 +1553,7 @@
                                     )}
                                 </div>
 
-                                <div className="flex-grow flex flex-col">
+                                <div className="flex flex-col">
                                     <div className="flex items-center justify-between border-b border-slate-300 px-1 pt-1 bg-slate-200/50 rounded-t-2xl">
                                         <div className="flex space-x-1">
                                             <button
@@ -1572,6 +1572,7 @@
                                                 onClick={() => {
                                                     setActiveTab('pair');
                                                     if (pairRules.length === 0) {
+                                                        prevPairRulesLength.current = 1;
                                                         handleAddPairRule();
                                                     }
                                                 }}
@@ -1597,7 +1598,7 @@
                                         </div>
                                     </div>
 
-                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm flex-grow min-h-[350px]">
+                                    <div ref={tabContentRef} className="bg-white rounded-b-2xl p-3 border border-slate-300 border-t-0 shadow-sm min-h-[260px]">
                                         {activeTab === 'members' && (
                                             <div className="space-y-0.5">
                                                 <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-1 text-[11px] font-bold text-slate-500 border-b border-slate-100">
@@ -1857,7 +1858,7 @@
                                     </div>
                                 </div>
 
-                                <div ref={bottomRef} />
+                                <div ref={bottomRef} style={{ scrollMarginBottom: '140px' }} />
                             </div>
                         )}
 
@@ -2316,21 +2317,23 @@
                         onChange={(e) => { if (e.target.value.length <= 4) setName(e.target.value); }}
                         placeholder={`名前${nextNumber}`}
                         maxLength={4}
-                        className="flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300 placeholder:font-normal shrink-0"
+                        className="flex-1 min-w-0 bg-white border border-slate-200 focus:border-emerald-500 rounded px-2 py-1 outline-none text-sm font-bold text-slate-800 placeholder:text-slate-300"
                     />
 
                     <div className="flex space-x-0.5 shrink-0 w-14">
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('M')}
-                            className="w-7 py-1 text-sm font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
+                            className="w-7 py-1 bg-sky-50 hover:bg-sky-500 text-sky-600 hover:text-white border border-sky-200 font-bold rounded text-sm transition-all shadow-sm active:scale-95"
+                            title="男性として追加"
                         >
                             男
                         </button>
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('F')}
-                            className="w-7 py-1 text-sm font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
+                            className="w-7 py-1 bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white border border-rose-200 font-bold rounded text-sm transition-all shadow-sm active:scale-95"
+                            title="女性として追加"
                         >
                             女
                         </button>
@@ -2340,7 +2343,7 @@
                         type="button"
                         onClick={toggleLevel}
                         className={`w-20 py-1 px-0.5 text-sm font-bold rounded border transition-all truncate text-center shrink-0 ${getLevelBadgeClass(level)}`}
-                        title="タップしてレベル変更"
+                        title="タップして初期レベル変更"
                     >
                         {level}
                     </button>
