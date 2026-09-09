@@ -1680,7 +1680,7 @@
                                                         </div>
                                                     ))}
 
-                                                    <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} getLevelBadgeClass={getLevelBadgeClass} />
+                                                    <EmptyRowCreator key={`empty-${members.length}`} onAddMember={handleAddMember} nextNumber={members.length + 1} getLevelBadgeClass={getLevelBadgeClass} />
                                                 </div>
                                             </div>
                                         )}
