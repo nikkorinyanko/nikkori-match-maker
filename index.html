@@ -1425,10 +1425,13 @@
                                     </button>
                                 </div>
 
-                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-none pt-8 pb-5 text-white shadow-md text-center">
-                                    <h2 className="text-xl font-black mb-3">にっこり対戦表メーカー</h2>
-                                    <p className="text-emerald-50 text-sm">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
-                                </div>
+                                    {/* GitHub上の title.png 画像を表示 */}
+                                    <img 
+                                        src="./title.png" 
+                                        alt="にっこり対戦表メーカー" 
+                                        className="mx-auto max-w-full h-auto px-1 mb-2 object-contain"
+                                    />
+                                    <div className="h-2"></div>
 
                                 <div className="space-y-2.5">
                                     {groups.map((g, index) => (
@@ -1457,7 +1460,7 @@
                                             <button
                                                 type="button"
                                                 onClick={() => handleSelectGroup(g.id)}
-                                                className="flex-grow bg-white border border-slate-200 hover:border-emerald-400 rounded-xl py-2 px-3 shadow-sm text-left flex items-center justify-between group transition-all min-w-0"
+                                                className="flex-grow bg-white border border-slate-200 hover:border-emerald-400 rounded-xl py-2 px-3 shadow-md text-left flex items-center justify-between group transition-all min-w-0"
                                             >
                                                 <div className="overflow-visible">
                                                     <div className="font-bold text-slate-800 group-hover:text-emerald-600 overflow-visible">
@@ -1506,7 +1509,7 @@
                                         <button
                                             type="button"
                                             onClick={handleCreateNewGroup}
-                                            className="flex-grow bg-slate-100 border border-slate-300 hover:bg-slate-300 rounded-xl py-2 px-3 shadow-sm text-center flex items-center justify-center font-bold text-slate-800 transition-all active:scale-[0.98]"
+                                            className="flex-grow bg-emerald-600 hover:bg-emerald-700 rounded-full py-2 px-3 shadow-md text-center flex items-center justify-center font-bold text-white transition-all active:scale-[0.98]"
                                         >
                                             ＋ 新規グループを作成する
                                         </button>
@@ -1519,7 +1522,7 @@
                         {}
                         {page === 'group' && (
                             <div className="space-y-3 flex-col">
-                                <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
+                                <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-md flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
                                             type="text"
@@ -1782,7 +1785,7 @@
                                                 <button
                                                     type="button"
                                                     onClick={handleAddPairRule}
-                                                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-3 rounded-xl border border-dashed border-slate-300 text-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
+                                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 shadow-md rounded-full text-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                                 >
                                                     ＋ ペアを追加する
                                                 </button>
