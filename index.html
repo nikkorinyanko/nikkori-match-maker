@@ -1396,9 +1396,17 @@
                         </span>
                     </header>
 
-                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 flex flex-col">
+                    <main className="flex-grow max-w-md w-full mx-auto px-4 pt-0 pb-4 flex flex-col">
                         {page === 'top' && (
-                            <div className="space-y-2.5 pt-4">
+                            <div className="space-y-2.5 pt-1">
+
+                                    {/* GitHub上の title.png 画像を表示 */}
+                                    <img 
+                                        src="./title.png" 
+                                        alt="にっこり対戦表メーカー" 
+                                        className="mx-auto max-w-full h-auto px-0 mb-2 object-contain"
+                                    />
+
                                 <div className="flex justify-start space-x-1 text-sm font-bold text-slate-500 px-1">
                                     <button 
                                         type="button" 
@@ -1424,13 +1432,7 @@
                                         Feedback
                                     </button>
                                 </div>
-
-                                    {/* GitHub上の title.png 画像を表示 */}
-                                    <img 
-                                        src="./title.png" 
-                                        alt="にっこり対戦表メーカー" 
-                                        className="mx-auto max-w-full h-auto px-1 mb-2 object-contain"
-                                    />
+         
                                     <div className="h-2"></div>
 
                                 <div className="space-y-2.5">
